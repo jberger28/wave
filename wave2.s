@@ -400,7 +400,12 @@ sVlsr:	shr	shiftCount, reg2
 	jmp	shiftNum3
 sVasr:	sar	shiftCount, reg2
 	jmp	shiftNum3
-sVror:	shl	shiftCount, reg2
+sVror: 	mov	$32,shop
+	sub	shiftCount,shop
+	mov	reg2,temp
+	shl	shop,temp
+	shr	shiftCount,reg2
+	xor	temp,reg2
 	jmp	shiftNum3
 
 sRlsl:	shl	reg, reg2
@@ -409,8 +414,13 @@ sRlsr:	shr	reg, reg2
 	jmp	shiftReg3
 sRasr:	sar	reg, reg2
 	jmp	shiftReg3
-sRror:	shl	reg, reg2
-	jmp	shiftReg3
+sRror:	mov	$32,shop
+	sub	reg,shop
+	mov	reg2,temp
+	shl	shop,temp
+	shr	reg,reg2
+	xor	temp,reg2
+	jmp	shiftNum3
 
 gchar:	trap	$SysGetChar
 	mov	r0, wr0
