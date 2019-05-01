@@ -49,12 +49,14 @@ bit14:
 	mov	ir, value
 	and	$0b11111111, value
 
+	shl	exp, value
+	
 	mov	opjmp(opcode), rip
 	
 shifts:
 	mov	ir, temp
 	sar	$12, temp
-	and	$0b111, temp
+	and	$0b11, temp
 	mov	shjmp(temp), rip
 
 shiftNum:
@@ -69,9 +71,11 @@ shiftNum:
 	mov	ir, shiftCount
 	and	$0b111111, shiftCount
 
-getNumReg2:mov	getreg2(reg2), rip
+getNumReg2:	mov	getreg2(reg2), rip
 
-shiftNum2:	
+shiftNum2:	mov	shopVjmp(shop), rip
+shiftNum3:	mov	reg2, value
+		mov	opjmp(opcode), rip
 
 shiftReg:
 	mov	ir, shop
@@ -87,7 +91,9 @@ getReg2:mov	ir, reg2
 	and	$0b1111, reg2
 	mov	getR2(reg2), rip
 
-shiftReg2:
+shiftReg2:	mov	shopRjmp(shop), rip
+shiftReg3:	mov	reg2, value
+		mov	opjmp(opcode), rip
 	
 fma:
 	mov	ir, reg2
@@ -103,8 +109,7 @@ fma2:
 
 
 	
-halt:	trap	$SysPutNum
-	trap	$SysHalt
+halt:	trap	$SysHalt
 
 wadd:
 	add	value, src
@@ -130,13 +135,14 @@ wmov:
 	cmp	$0,temp
 
 	je	wmovV
+	mov	reg2, src
 	mov	regjmp(dest), rip
 	
 wmovV:	mov	value, src
 	mov	regjmp(dest), rip
 wmvn:
 	
-wswi:	
+wswi:	mov	swijmp(value), rip
 
 gs0:	mov	wr0, src
 	jmp	loopd
@@ -339,8 +345,100 @@ grrr14:	mov	wr14, reg3
 grrr15:	mov	wr15, reg3
 	jmp	fma2
 	
-rr0:
-	mov	src, wr0
+rr0:	mov	src, wr0
+	add	$1, wpc
+	jmp	loop
+rr1:	mov	src, wr1
+	add	$1, wpc
+	jmp	loop
+rr2:	mov	src, wr2
+	add	$1, wpc
+	jmp	loop
+rr3:	mov	src, wr3
+	add	$1, wpc
+	jmp	loop
+rr4:	mov	src, wr4
+	add	$1, wpc
+	jmp	loop
+rr5:	mov	src, wr5
+	add	$1, wpc
+	jmp	loop
+rr6:	mov	src, wr6
+	add	$1, wpc
+	jmp	loop
+rr7:	mov	src, wr7
+	add	$1, wpc
+	jmp	loop
+rr8:	mov	src, wr8
+	add	$1, wpc
+	jmp	loop
+rr9:	mov	src, wr9
+	add	$1, wpc
+	jmp	loop
+rr10:	mov	src, wr10
+	add	$1, wpc
+	jmp	loop
+rr11:	mov	src, wr11
+	add	$1, wpc
+	jmp	loop
+rr12:	mov	src, wr12
+	add	$1, wpc
+	jmp	loop
+rr13:	mov	src, wr13
+	add	$1, wpc
+	jmp	loop
+rr14:	mov	src, wr14
+	add	$1, wpc
+	jmp	loop
+rr15:	mov	src, wr15
+	add	$1, wpc
+	jmp	loop
+
+sVlsl:	shl	shiftCount, reg2
+	jmp	shiftNum3
+sVlsr:	shr	shiftCount, reg2
+	jmp	shiftNum3
+sVasr:	sar	shiftCount, reg2
+	jmp	shiftNum3
+sVror:	shl	shiftCount, reg2
+	jmp	shiftNum3
+
+sRlsl:	shl	reg, reg2
+	jmp	shiftReg3
+sRlsr:	shr	reg, reg2
+	jmp	shiftReg3
+sRasr:	sar	reg, reg2
+	jmp	shiftReg3
+sRror:	shl	reg, reg2
+	jmp	shiftReg3
+
+gchar:	trap	$SysGetChar
+	mov	r0, wr0
+	add	$1, wpc
+	jmp	loop
+gnum:	trap	$SysGetNum
+	mov	r0, wr0
+	add	$1, wpc
+	jmp	loop
+pchar:	mov	wr0, r0
+	trap	$SysPutChar
+	add	$1, wpc
+	jmp	loop
+pnum:	mov	wr0, r0
+	trap	$SysPutNum
+	add	$1, wpc
+	jmp	loop
+ent:	trap	$SysEntropy
+	mov	r0, wr0
+	add	$1, wpc
+	jmp	loop
+over:	mov	wr0, r0
+	trap	$SysOverlay
+	add	$1, wpc
+	jmp	loop
+pla:	mov	wr0, r0
+	trap	$SysPLA
+	mov	r0, wr0
 	add	$1, wpc
 	jmp	loop
 	
@@ -350,8 +448,8 @@ opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 
-getsrc: .data	gs0, gs1, gs2, gs3, gr4, gr5, gr6, gr7
-	.data	gr8, gr9, gr10, gr11, gr12, gr13, gr14, gr15
+getsrc: .data	gs0, gs1, gs2, gs3, gs4, gs5, gs6, gs7
+	.data	gs8, gs9, gs10, gs11, gs12, gs13, gs14, gs15
 
 ;;; Get reg2 for reg
 getR2: 	.data	grerr0, grerr1, grerr2, grerr3, grerr4, grerr5, grerr6, grerr7
@@ -371,10 +469,13 @@ getfma2: .data	grr0, grr1, grr2, grr3, grr4, grr5, grr6, grr7
 getfma3: .data	grrr0, grrr1, grrr2, grrr3, grrr4, grrr5, grrr6, grrr7
 	.data	grrr8, grrr9, grrr10, grrr11, grrr12, grrr13, grrr14, grrr15
 
-regjmp:	.data	rr0
-	;; , rr1, rr2, rr3, rr4, rr5, rr6, rr7
-	;; .data	rr8, rr9, rr10, rr11, rr12, rr13, rr14, rr15
-	
+regjmp:	.data	rr0, rr1, rr2, rr3, rr4, rr5, rr6, rr7
+	.data	rr8, rr9, rr10, rr11, rr12, rr13, rr14, rr15
+
+shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
+shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
+swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
+
 ;;; assume left hand source in r2, right hand source in r3
 	
 wregs:
