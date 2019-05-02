@@ -96,7 +96,12 @@ shiftReg3:	mov	reg2, value
 		mov	opjmp(opcode), rip
 	
 fma:
-	mov	ir, reg2
+	mov	ir, reg
+	sar	$15, reg
+	and	$0b1111, reg
+	mov	getfma1(reg), rip
+
+fma1:	mov	ir, reg2
 	sar	$6, reg2
 	and	$0b1111, reg2
 	mov	getfma2(reg2), rip
@@ -105,30 +110,54 @@ getReg3:mov	ir, reg3
 	and	$0b1111, reg3
 	mov	getfma3(reg3), rip
 	
-fma2:
+fma2:	mov	opjmp(opcode), rip
 
 
 	
 halt:	trap	$SysHalt
 
-wadd:
-	add	value, src
+wadd:	add	value, src
+	mov	ccr, wccr
 	mov	regjmp(dest), rip
 
-wadc:
-wsub:
-	sub	value, src
+wadc:	add	value, src
+	mov 	wccr, temp
+	mov	ccr, wccr
+	and	0b10, temp
+	cmp	$0, temp
+	je	wadcjmp
+	add	$1, src
+	mov	ccr, wccr
 	mov	regjmp(dest), rip
-wcmp:
-weor:
-worr:
-wand:
-wtst:
-wmul:
-wmla:
-wdiv:
-wmov:
-	mov	ir, temp
+wadcjmp:mov	regjmp(dest), rip	
+wsub:	sub	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wcmp:	sub	value, src
+	mov	ccr, wccr
+weor:	xor	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+worr:	or	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wand:	and	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wtst:	and	value, src
+	mov	ccr, wccr
+wmul:	mul	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wmla:	mul	reg2, reg3
+	add	reg3, reg
+	mov	ccr, wccr
+	mov	reg, src
+	mov	regjmp(dest), rip
+wdiv:	div	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wmov:	mov	ir, temp
 	shr	$14,temp
 	and	$1,temp
 	mov	temp, r0
@@ -140,7 +169,23 @@ wmov:
 	
 wmovV:	mov	value, src
 	mov	regjmp(dest), rip
-wmvn:
+
+wmvn:	mov	ir, temp
+	shr	$14,temp
+	and	$1,temp
+	mov	temp, r0
+	cmp	$0,temp
+
+	je	wmvnV
+	xor	$0b11111111111111111111111111111111,reg2
+	mov	ccr,wccr
+	mov	reg2, src
+	mov	regjmp(dest), rip
+	
+wmvnV:	xor	$0b11111111111111111111111111111111,value
+	mov	ccr,wccr
+	mov	value, src
+	mov	regjmp(dest), rip
 	
 wswi:	mov	swijmp(value), rip
 
@@ -279,6 +324,40 @@ grerr15:mov	wr15, reg2
 	jmp	shiftReg2
 
 ;;; src reg 2 for reg 3
+gf0:	mov	wr0, reg
+	jmp	fma1
+gf1:	mov	wr1, reg
+	jmp	fma1
+gf2:	mov	wr2, reg
+	jmp	fma1
+gf3:	mov	wr3, reg
+	jmp	fma1
+gf4:	mov	wr4, reg
+	jmp	fma1
+gf5:	mov	wr5, reg
+	jmp	fma1
+gf6:	mov	wr6, reg
+	jmp	fma1
+gf7:	mov	wr7, reg
+	jmp	fma1
+gf8:	mov	wr8, reg
+	jmp	fma1
+gf9:	mov	wr9, reg
+	jmp	fma1
+gf10:	mov	wr10, reg
+	jmp	fma1
+gf11:	mov	wr11, reg
+	jmp	fma1
+gf12:	mov	wr12, reg
+	jmp	fma1
+gf13:	mov	wr13, reg
+	jmp	fma1
+gf14:	mov	wr14, reg
+	jmp	fma1
+gf15:	mov	wr15, reg
+	jmp	fma1
+
+	
 grr0:	mov 	wr0, reg2
 	jmp	getReg3
 grr1:	mov 	wr1, reg2
@@ -473,6 +552,9 @@ getreg2: 	.data	gnrr0, gnrr1, gnrr2, gnrr3, gnrr4, gnrr5, gnrr6, gnrr7
 		.data	gnrr8, gnrr9, gnrr10, gnrr11, gnrr12, gnrr13, gnrr14, gnrr15
 
 ;;; Get reg2 for reg3
+getfma1: .data	gf0, gf1, gf2, gf3, gf4, gf5, gf6, gf7, gf8
+	.data	gf9, gf10, gf11, gf12, gf13, gf14, gf15
+	
 getfma2: .data	grr0, grr1, grr2, grr3, grr4, grr5, grr6, grr7
 	.data	grr8, grr9, grr10, grr11, grr12, grr13, grr14, grr15
 
@@ -508,6 +590,7 @@ wlr:
 wr14:	.data	0
 wpc:	
 wr15:	.data	0
-		
+wccr:	.data	0
+	
 ;;; ------------------write no code below this line------------------------
 warm:	 			; Warm overlay is loaded here
