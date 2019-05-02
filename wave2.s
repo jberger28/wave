@@ -669,7 +669,6 @@ wr14:	.data	0
 wpc:	
 wr15:	.data	0
 wccr:	.data	0
-con:	.data	0
 	
 ;;; ------------------write no code below this line------------------------
 warm:	 			; Warm overlay is loaded here
