@@ -1,4 +1,4 @@
-// (c) 2019 gaurnett flowers & jared berger
+;;; (c) 2019 gaurnett flowers & jared berger
 ;;; -*- Mode: asm; compile-command: "wia wave2.s" -*-
 	.requ	ir,r2
 	.requ	src,r3
@@ -97,23 +97,12 @@ branch:
 	and	$0b11, temp
 	mov	bjmp(temp), rip
 	
-branchf:
-	and	$0xffffff, wpc
+branchf:add	ir,wpc
+	and	$0xffffff,wpc
 	mov	wpc, r0
-	add	value, r0
-	mov	r0, wpc
 	mov	warm(r0), ir
 	jmp	loopb
-branchb:
-	and	$0xffffff, wpc
-	mov	wpc, r0
-	xor	$0xffffff, value
-	add	$1,value
-	sub	value,r0
-	mov	r0, wpc
-	mov	warm(r0), ir
-	jmp	loopb
-
+	
 branchlf:
 branchlb:
 	
@@ -644,7 +633,7 @@ shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
 shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 
-bjmp:		.data	branchf, branchb, branchlf, branchlb
+bjmp:		.data	branchf, branchf, branchlf, branchlb
 
 cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 ;;; assume left hand source in r2, right hand source in r3
