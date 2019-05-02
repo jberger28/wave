@@ -19,7 +19,43 @@ loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
 loopb:	cmp	$0x06800000, ir
 	je	halt
-	mov	ir, src
+
+cbits:	mov	ir,temp
+	shr	$29,temp
+	and	$0b111,temp
+	mov	cjmp(temp),rip
+
+wbal:   jmp	cbits2
+wbnv:	add	$1,wpc
+	jmp	loop
+wbeq:	mov	wccr,temp
+	and	$0b0100,temp
+	cmp	$0,temp
+	jne	cbits2
+	add	$1,wpc
+	jmp	loop
+wbne:
+wblt:
+wble:
+wbge:
+wbgt:	mov	wccr,temp
+	and	$0b0100,temp
+	cmp	$0,temp
+	je	wbgt2
+	add	$1,wpc
+	jmp	loop
+wbgt2:	mov	wccr,temp
+	and	$0b1000,temp
+	mov	wccr,value
+	and	$0b0001,value
+	cmp	temp,value
+	je	cbits2
+	add	$1,wpc
+	jmp	loop
+	
+	
+	
+cbits2:	mov	ir, src
 	sar	$15, src
 	and	$0b1111, src
 	
@@ -34,6 +70,7 @@ loopb:	cmp	$0x06800000, ir
 	mov	getsrc(src), rip
 	
 loopd:
+	
 	;; Checks branching
 	mov	ir, temp
 	shr	$26, temp
@@ -55,7 +92,7 @@ branch:
 	and	$0xffffff, value
 	
 	mov	ir, temp
-	shr	$24, temp
+	shr	$23, temp
 	and	$0b11, temp
 	mov	bjmp(temp), rip
 	
@@ -69,7 +106,9 @@ branchf:
 branchb:
 	and	$0xffffff, wpc
 	mov	wpc, r0
-	sub	value, r0
+	xor	$0xffffff, value
+	add	$1,value
+	sub	value,r0
 	mov	r0, wpc
 	mov	warm(r0), ir
 	jmp	loopb
@@ -605,6 +644,8 @@ shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 
 bjmp:		.data	branchf, branchb, branchlf, branchlb
+
+cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 ;;; assume left hand source in r2, right hand source in r3
 	
 wregs:
@@ -628,6 +669,7 @@ wr14:	.data	0
 wpc:	
 wr15:	.data	0
 wccr:	.data	0
+con:	.data	0
 	
 ;;; ------------------write no code below this line------------------------
 warm:	 			; Warm overlay is loaded here
