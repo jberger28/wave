@@ -1,3 +1,4 @@
+// (c) 2019 gaurnett flowers & jared berger
 ;;; -*- Mode: asm; compile-command: "wia wave2.s" -*-
 	.requ	ir,r2
 	.requ	src,r3
