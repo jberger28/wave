@@ -17,7 +17,7 @@
 
 loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
-	cmp	$0x06800000, ir
+loopb:	cmp	$0x06800000, ir
 	je	halt
 	mov	ir, src
 	sar	$15, src
@@ -33,7 +33,16 @@ loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 
 	mov	getsrc(src), rip
 	
-loopd:	mov	ir, temp
+loopd:
+	;; Checks branching
+	mov	ir, temp
+	shr	$26, temp
+	and	$0b11, temp
+	cmp	$3, temp
+	je	branch
+	
+	;; Checks Shift/Bit14
+	mov	ir, temp
 	shr	$14,temp
 	and	$1,temp
 	mov	temp, r0
@@ -41,6 +50,33 @@ loopd:	mov	ir, temp
 	je	bit14
 	jne	shifts
 
+branch:
+	mov	ir, value
+	and	$0xffffff, value
+	
+	mov	ir, temp
+	shr	$24, temp
+	and	$0b11, temp
+	mov	bjmp(temp), rip
+	
+branchf:
+	and	$0xffffff, wpc
+	mov	wpc, r0
+	add	value, r0
+	mov	r0, wpc
+	mov	warm(r0), ir
+	jmp	loopb
+branchb:
+	and	$0xffffff, wpc
+	mov	wpc, r0
+	sub	value, r0
+	mov	r0, wpc
+	mov	warm(r0), ir
+	jmp	loopb
+
+branchlf:
+branchlb:
+	
 bit14:
 	mov	ir, exp
 	sar	$9, exp
@@ -568,6 +604,7 @@ shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
 shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 
+bjmp:		.data	branchf, branchb, branchlf, branchlb
 ;;; assume left hand source in r2, right hand source in r3
 	
 wregs:
