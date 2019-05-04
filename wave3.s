@@ -16,6 +16,12 @@
 	lea	warm,r0
 	trap	$SysOverlay
 
+	.equ	wmem, -16777216
+;;; prolog
+	push 	rbp
+	mov	rsp,rbp
+	sub	$16777216,rsp
+
 loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
 loopb:	cmp	$0x06800000, ir
@@ -58,36 +64,26 @@ wbgt:	mov	wccr,ccr
 	jmp	loop
 
 	
-branch:
-	mov	ir, value
-	and	$0xffffff, value
-	
-	mov	ir, temp
-	shr	$23, temp
-	and	$0b11, temp
-	mov	bjmp(temp), rip
-	
-branchf:add	ir,wpc
+wbranch:add	ir,wpc
 	and	$0xffffff,wpc
 	mov	wpc, r0
 	mov	warm(r0), ir
 	jmp	loopb
 	
-branchlf:
-branchlb:
-
+wbranchl:
+	mov	wpc,temp
+	add	$1,temp
+	mov	warm(temp),wlr
+	add	ir,wpc
+	and	$0xffffff,wpc
+	mov	wpc, r0
+	mov	warm(r0), ir	
+	jmp	loopb	
+		
 dop:	mov	ir, opcode
 	sar	$23, opcode
 	and	$0b11111, opcode
 	mov	opdecode(opcode), rip
-	
-	
-d2:	mov	r2, dest
-	sar	$19, dest
-	and	$0b1111, dest
-	jmp	loopd
-	
-d3:	
 	
 d0:	mov	r2, dest
 	sar	$19, dest
@@ -98,7 +94,77 @@ d1:	mov	ir, src
 	and	$0b1111, src
 	
 	mov	getsrc(src), rip
+
+d2:	mov	r2, dest
+	sar	$19, dest
+	and	$0b1111, dest
+	jmp	loopd
 	
+d3:	mov	ir, reg
+	and	$0b11111111111111, reg
+	mov	ir, temp
+	sar	$14, temp
+	and	$0b1, temp
+	cmp	$0, temp
+	je	w2d3
+	
+	mov	ir, shop
+	sar	$10, shop
+	and	$0b11, shop
+
+	mov 	ir, reg
+	and	$0b1111, reg
+	mov	getd3reg(reg), rip
+	
+wd3:	mov	ir, value
+	and	$0b111111, value
+	mov	shopd3jmp(shop), rip
+
+w2d3:	mov	ir, src
+	sar	$15, src
+	and	$0b1111, src
+	mov	src, temp
+	mov	getd3src(src), rip	
+
+w3d3:	mov 	ir, dest
+	sar	$19, dest
+	and	$0b1111, dest
+	and 	$0b111, opcode
+	mov	opload(opcode), rip
+
+wldr:	add	reg, src
+	mov	wmem(src), src
+	mov	regjmp(dest), rip
+
+wldu:	cmp	$0, reg
+	jl	wldr
+	add	src, reg
+	mov	ldubase(temp), rip
+
+wldu2:	mov	wmem(src), src
+	mov	regjmp(dest), rip
+	
+wstr:	mov	getd3dest(dest), rip
+	
+wstu:	mov	getd3dest(dest), rip
+wstu3:	cmp	$0, reg
+	jl	wstr
+	add	src, reg
+	mov	stubase(temp), rip
+
+wstu2:	mov	dest, wmem(src)
+	add	$1, wpc
+	jmp	loop
+	
+w4d3:	cmp	$3, opcode
+	je	wstu3
+	
+	add 	reg, src
+	mov	dest, wmem(src)
+	add	$1, wpc
+	jmp	loop
+
+wadr:	
 loopd:	
 	;; Checks Shift/Bit14
 	mov	ir, temp
@@ -543,6 +609,172 @@ rr15:	mov	src, wr15
 	add	$1, wpc
 	jmp	loop
 
+;;; load/multiple
+gd0:	mov	wr0, reg
+	jmp	wd3
+gd1:	mov	wr1, reg
+	jmp	wd3
+gd2:	mov	wr2, reg
+	jmp	wd3
+gd3:	mov	wr3, reg
+	jmp	wd3
+gd4:	mov	wr4, reg
+	jmp	wd3
+gd5:	mov	wr5, reg
+	jmp	wd3
+gd6:	mov	wr6, reg
+	jmp	wd3
+gd7:	mov	wr7, reg
+	jmp	wd3
+gd8:	mov	wr8, reg
+	jmp	wd3
+gd9:	mov	wr9, reg
+	jmp	wd3
+gd10:	mov	wr10, reg
+	jmp	wd3
+gd11:	mov	wr11, reg
+	jmp	wd3
+gd12:	mov	wr12, reg
+	jmp	wd3
+gd13:	mov	wr13, reg
+	jmp	wd3
+gd14:	mov	wr14, reg
+	jmp	wd3
+gd15:	mov	wr15, reg
+	jmp	wd3
+
+wgd0:	mov	wr0, src
+	jmp	w3d3
+wgd1:	mov	wr1, src
+	jmp	w3d3
+wgd2:	mov	wr2, src
+	jmp	w3d3
+wgd3:	mov	wr3, src
+	jmp	w3d3
+wgd4:	mov	wr4, src
+	jmp	w3d3
+wgd5:	mov	wr5, src
+	jmp	w3d3
+wgd6:	mov	wr6, src
+	jmp	w3d3
+wgd7:	mov	wr7, src
+	jmp	w3d3
+wgd8:	mov	wr8, src
+	jmp	w3d3
+wgd9:	mov	wr9, src
+	jmp	w3d3
+wgd10:	mov	wr10, src
+	jmp	w3d3
+wgd11:	mov	wr11, src
+	jmp	w3d3
+wgd12:	mov	wr12, src
+	jmp	w3d3
+wgd13:	mov	wr13, src
+	jmp	w3d3
+wgd14:	mov	wr14, src
+	jmp	w3d3
+wgd15:	mov	wr15, src
+	jmp	w3d3
+
+wgdest0:	mov	wr0, dest
+	jmp	w4d3
+wgdest1:	mov	wr1, dest
+	jmp	w4d3
+wgdest2:	mov	wr2, dest
+	jmp	w4d3
+wgdest3:	mov	wr3, dest
+	jmp	w4d3
+wgdest4:	mov	wr4, dest
+	jmp	w4d3
+wgdest5:	mov	wr5, dest
+	jmp	w4d3
+wgdest6:	mov	wr6, dest
+	jmp	w4d3
+wgdest7:	mov	wr7, dest
+	jmp	w4d3
+wgdest8:	mov	wr8, dest
+	jmp	w4d3
+wgdest9:	mov	wr9, dest
+	jmp	w4d3
+wgdest10:	mov	wr10, dest
+	jmp	w4d3
+wgdest11:	mov	wr11, dest
+	jmp	w4d3
+wgdest12:	mov	wr12, dest
+	jmp	w4d3
+wgdest13:	mov	wr13, dest
+	jmp	w4d3
+wgdest14:	mov	wr14, dest
+	jmp	w4d3
+wgdest15:	mov	wr15, dest
+	jmp	w4d3
+
+b0:	mov	reg, wr0
+	jmp	wldu2
+b1:	mov	reg, wr1
+	jmp	wldu2
+b2:	mov	reg, wr2
+	jmp	wldu2
+b3:	mov	reg, wr3
+	jmp	wldu2
+b4:	mov	reg, wr4
+	jmp	wldu2
+b5:	mov	reg, wr5
+	jmp	wldu2
+b6:	mov	reg, wr6
+	jmp	wldu2
+b7:	mov	reg, wr7
+	jmp	wldu2
+b8:	mov	reg, wr8
+	jmp	wldu2
+b9:	mov	reg, wr9
+	jmp	wldu2
+b10:	mov	reg, wr10
+	jmp	wldu2
+b11:	mov	reg, wr11
+	jmp	wldu2
+b12:	mov	reg, wr12
+	jmp	wldu2
+b13:	mov	reg, wr13
+	jmp	wldu2
+b14:	mov	reg, wr14
+	jmp	wldu2
+b15:	mov	reg, wr15
+	jmp	wldu2
+	
+s0:	mov	reg, wr0
+	jmp	wstu2
+s1:	mov	reg, wr1
+	jmp	wstu2
+s2:	mov	reg, wr2
+	jmp	wstu2
+s3:	mov	reg, wr3
+	jmp	wstu2
+s4:	mov	reg, wr4
+	jmp	wstu2
+s5:	mov	reg, wr5
+	jmp	wstu2
+s6:	mov	reg, wr6
+	jmp	wstu2
+s7:	mov	reg, wr7
+	jmp	wstu2
+s8:	mov	reg, wr8
+	jmp	wstu2
+s9:	mov	reg, wr9
+	jmp	wstu2
+s10:	mov	reg, wr10
+	jmp	wstu2
+s11:	mov	reg, wr11
+	jmp	wstu2
+s12:	mov	reg, wr12
+	jmp	wstu2
+s13:	mov	reg, wr13
+	jmp	wstu2
+s14:	mov	reg, wr14
+	jmp	wstu2
+s15:	mov	reg, wr15
+	jmp	wstu2
+
 sVlsl:	shl	shiftCount, reg2
 	jmp	shiftNum3
 sVlsr:	shr	shiftCount, reg2
@@ -570,6 +802,20 @@ sRror:	mov	$32,shop
 	shr	reg,reg2
 	xor	temp,reg2
 	jmp	shiftNum3
+
+sd3lsl:	shl	value, reg
+	jmp	w2d3
+sd3lsr:	shr	value, reg
+	jmp	w2d3
+sd3asr:	sar	value, reg
+	jmp	w2d3
+sd3ror:	mov	$32,shop
+	sub	value,shop
+	mov	reg,temp
+	shl	shop,temp
+	shr	value,reg
+	xor	temp,reg
+	jmp	w2d3
 
 gchar:	trap	$SysGetChar
 	mov	r0, wr0
@@ -604,8 +850,8 @@ pla:	mov	wr0, r0
 ;;; d0 add, d1 compare, d2 mov, d3 swi
 opdecode:	.data 	d0,d0,d0,d1,d0,d0,d0,d1
 	.data	d0,d0,d0,d2,d2,bit14,halt, halt
-	.data	halt, halt, halt, halt, halt, halt, halt, halt
-	.data	branch, branch
+	.data	d3, d3, d3, d3, d3, halt, halt, halt
+	.data	wbranch, wbranch, wbranchl, wbranchl,
 	
 shjmp:	.data	shiftNum, shiftReg, fma
 opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand
@@ -644,7 +890,19 @@ shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
 shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 
-bjmp:		.data	branchf, branchf, branchlf, branchlb
+opload:		.data 	wldr, wstr, wldu, wstu, wadr
+getd3reg: .data	gd0, gd1, gd2, gd3, gd4, gd5, gd6, gd7
+	.data	gd8, gd9, gd10, gd11, gd12, gd13, gd14, gd15
+ldubase: .data	b0, b1, b2, b3, b4, b5, b6, b7
+	.data	b8, b9, b10, b11, b12, b13, b14, b15
+stubase: .data	s0, s1, s2, s3, s4, s5, s6, s7
+	.data	s8, s9, s10, s11, s12, s13, s14, s15
+shopd3jmp:	.data	sd3lsl, sd3lsr, sd3asr, sd3ror
+getd3src: .data	wgd0, wgd1, wgd2, wgd3, wgd4, wgd5, wgd6, wgd7
+	.data	wgd8, wgd9, wgd10, wgd11, wgd12, wgd13, wgd14, wgd15
+getd3dest: .data	wgdest0, wgdest1, wgdest2, wgdest3, wgdest4, wgdest5,
+	.data	wgdest6, wgdest7, wgdest8, wgdest9, wgdest10, wgdest11,
+	.data	wgdest12, wgdest13, wgdest14, wgdest15
 
 cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 ;;; assume left hand source in r2, right hand source in r3
@@ -670,6 +928,7 @@ wr14:	.data	0
 wpc:	
 wr15:	.data	0
 wccr:	.data	0
-	
+
+
 ;;; ------------------write no code below this line------------------------
 warm:	 			; Warm overlay is loaded here
