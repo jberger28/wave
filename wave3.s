@@ -93,9 +93,7 @@ d1:	mov	ir, src
 	and	$0b1111, src
 	mov	getsrc(src), rip
 	
-	;; INCREMENT PROGRAM COUNTER HERE, AFTER SRC REG RETRIEVED
 d2:
-	;; 	add	$1,wpc
 	mov	r2, dest
 	sar	$19, dest
 	and	$0b1111, dest
@@ -133,11 +131,13 @@ w3d3:	mov 	ir, dest
 	and 	$0b111, opcode
 	mov	opload(opcode), rip
 	
-wldr:	add	reg, src
+wldr:	add	$1,wpc
+	add	reg, src
 	mov	wmem(src), src
 	mov	regjmp(dest), rip
 
-wldu:	cmp	$0, reg
+wldu:	add	$1,wpc
+	cmp	$0, reg
 	jl	wldu3
 	add	src, reg
 	mov	ldubase(temp), rip
@@ -153,9 +153,11 @@ wldu4:	add 	reg,src
 	mov	wmem(src), src
 	mov	regjmp(dest), rip
 	
-wstr:	mov	getd3dest(dest), rip
+wstr:	add	$1,wpc
+	mov	getd3dest(dest), rip
 	
-wstu:	mov	getd3dest(dest), rip
+wstu:	add	$1,wpc
+	mov	getd3dest(dest), rip
 
 w4d3:	cmp	$3, opcode
 	je	wstu3
@@ -163,7 +165,7 @@ w4d3:	cmp	$3, opcode
 ;;; doing str
 	add 	reg, src
 	mov	dest, wmem(src)
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 
 ;;; doing stu
@@ -174,7 +176,7 @@ wstu3:	cmp	$0, reg
 
 wstu2: 	jl	wstu5
 	mov	dest, wmem(src)
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 	
 ;;; if negative
@@ -183,10 +185,11 @@ wstu4: 	add	src,reg
 
 wstu5:	add	reg,src
 	mov	dest,wmem(src)
-	add	$1,wpc
+	;; 	add	$1,wpc
 	jmp	loop
 	
-wadr:	add	reg,src
+wadr:	add	$1,wpc
+	add	reg,src
 	mov	regjmp(dest),rip
 loopd:	
 	;; Checks Shift/Bit14
@@ -207,7 +210,8 @@ bit14:
 	and	$0b11111111, value
 
 	shl	exp, value
-	
+	;; INCREMENT PROGRAM COUNTER
+	add	$1,wpc
 	mov	opjmp(opcode), rip
 	
 shifts:
@@ -232,6 +236,8 @@ getNumReg2:	mov	getreg2(reg2), rip
 
 shiftNum2:	mov	shopVjmp(shop), rip
 shiftNum3:	mov	reg2, value
+;;; INCREMENT PROGRAM COUNTER
+		add	$1,wpc
 		mov	opjmp(opcode), rip
 
 shiftReg:
@@ -250,6 +256,8 @@ getReg2:mov	ir, reg2
 
 shiftReg2:	mov	shopRjmp(shop), rip
 shiftReg3:	mov	reg2, value
+;;; INCREMENT PROGRAM COUNTER
+		add 	$1,wpc
 		mov	opjmp(opcode), rip
 	
 fma:
@@ -267,8 +275,11 @@ getReg3:mov	ir, reg3
 	and	$0b1111, reg3
 	mov	getfma3(reg3), rip
 	
-fma2:	mov	opjmp(opcode), rip
-
+fma2:
+	;; INCREMENT PROGRAM COUNTER (and maybe don't jump again)
+	;; should already know we are in fmla
+	add 	$1,wpc
+	mov	opjmp(opcode), rip
 
 	
 halt:	trap	$SysHalt
@@ -278,7 +289,7 @@ wadd:	add	value, src
 
 wadc:	add	value, src
 	mov 	wccr, temp
-	and	0b10, temp
+	and	$0b10, temp
 	cmp	$0, temp
 	je	wadcjmp
 	add	$1, src
@@ -288,7 +299,7 @@ wsub:	sub	value, src
 	mov	regjmp(dest), rip
 wcmp:	sub	value, src
 	mov	ccr, wccr
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 weor:	xor	value, src
 	mov	regjmp(dest), rip
@@ -297,7 +308,7 @@ worr:	or	value, src
 wand:	and	value, src
 	mov	regjmp(dest), rip
 wtst:	and	value, src
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 wmul:	mul	value, src
 	mov	regjmp(dest), rip
@@ -573,52 +584,36 @@ grrr15:	mov	wr15, reg3
 	jmp	fma2
 	
 rr0:	mov	src, wr0
- 	add	$1, wpc
 	jmp	loop
 rr1:	mov	src, wr1
-	add	$1, wpc
 	jmp	loop
 rr2:	mov	src, wr2
-	add	$1, wpc
 	jmp	loop
 rr3:	mov	src, wr3
-	add	$1, wpc
 	jmp	loop
 rr4:	mov	src, wr4
-	add	$1, wpc
 	jmp	loop
 rr5:	mov	src, wr5
-	add	$1, wpc
 	jmp	loop
 rr6:	mov	src, wr6
-	add	$1, wpc
 	jmp	loop
 rr7:	mov	src, wr7
-	add	$1, wpc
 	jmp	loop
 rr8:	mov	src, wr8
-	add	$1, wpc
 	jmp	loop
 rr9:	mov	src, wr9
-	add	$1, wpc
 	jmp	loop
 rr10:	mov	src, wr10
-	add	$1, wpc
 	jmp	loop
 rr11:	mov	src, wr11
-	add	$1, wpc
 	jmp	loop
 rr12:	mov	src, wr12
-	add	$1, wpc
 	jmp	loop
 rr13:	mov	src, wr13
-	add	$1, wpc
 	jmp	loop
 rr14:	mov	src, wr14
-	add	$1, wpc
 	jmp	loop
 rr15:	mov	src, wr15
-	add	$1, wpc		
 	jmp	loop
 
 ;;; load/multiple
@@ -831,76 +826,69 @@ sd3ror:	mov	$32,shop
 
 gchar:	trap	$SysGetChar
 	mov	r0, wr0
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 gnum:	trap	$SysGetNum
 	mov	r0, wr0
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 pchar:	mov	wr0, r0
 	trap	$SysPutChar
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 pnum:	mov	wr0, r0
 	trap	$SysPutNum
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 ent:	trap	$SysEntropy
 	mov	r0, wr0
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 over:	mov	wr0, r0
 	trap	$SysOverlay
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 pla:	mov	wr0, r0
 	trap	$SysPLA
 	mov	r0, wr0
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp	loop
 
 gchars:	trap	$SysGetChar
 	mov	r0, wr0
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 gnums:	trap	$SysGetNum
 	mov	r0, wr0
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 pchars:	mov	wr0, r0
 	trap	$SysPutChar
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 pnums:	mov	wr0, r0
 	trap	$SysPutNum
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 ents:	trap	$SysEntropy
 	mov	r0, wr0
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 overs:	mov	wr0, r0
 	trap	$SysOverlay
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 plas:	mov	wr0, r0
 	trap	$SysPLA
 	mov	r0, wr0
 	cmp	$0,wr0
 	mov	ccr,wccr
-	add	$1, wpc
 	jmp	loop
 
 ;;; ---------------------------- S ---------------------------------------
@@ -937,11 +925,13 @@ w3d3s:	mov 	ir, dest
 	and 	$0b111, opcode
 	mov	oploads(opcode), rip
 	
-wldrs:	add	reg, src
+wldrs:	add	$1,wpc
+	add	reg, src
 	mov	wmem(src), src
 	mov	regjmp(dest), rip
 
-wldus:	cmp	$0, reg
+wldus:	add	$1,wpc
+	cmp	$0, reg
 	jl	wldu3s
 	add	src, reg
 	mov	ldubases(temp), rip
@@ -957,9 +947,11 @@ wldu4s:	add 	reg,src
 	mov	wmem(src), src
 	mov	regjmp(dest), rip
 	
-wstrs:	mov	getd3dests(dest), rip
+wstrs:	add	$1,wpc
+	mov	getd3dests(dest), rip
 	
-wstus:	mov	getd3dests(dest), rip
+wstus:	add	$1,wpc
+	mov	getd3dests(dest), rip
 
 w4d3s:	cmp	$3, opcode
 	je	wstu3s
@@ -1010,7 +1002,7 @@ wsubs:	sub	value, src
 	mov	regjmp(dest), rip
 wcmps:	sub	value, src
 	mov	ccr, wccr
-	add	$1, wpc
+	;; 	add	$1, wpc		
 	jmp	loop
 weors:	xor	value, src
 	mov	ccr, wccr
@@ -1023,7 +1015,7 @@ wands:	and	value, src
 	mov	regjmp(dest), rip
 wtsts:	and	value, src
 	mov	ccr, wccr
-	add	$1, wpc
+	;; 	add	$1, wpc
 	jmp 	loop
 wmuls:	mul	value, src
 	mov	ccr, wccr
