@@ -17,8 +17,7 @@
 	trap	$SysOverlay
 
 	.equ	wmem, -16777216
-;;; prolog
-	push 	rbp
+;;; prolog ??
 	mov	rsp,rbp
 	sub	$16777216,rsp
 
@@ -82,7 +81,7 @@ wbranchl:
 		
 dop:	mov	ir, opcode
 	sar	$23, opcode
-	and	$0b11111, opcode
+	and	$0b111111, opcode
 	mov	opdecode(opcode), rip
 	
 d0:	mov	r2, dest
@@ -92,10 +91,12 @@ d0:	mov	r2, dest
 d1:	mov	ir, src
 	sar	$15, src
 	and	$0b1111, src
-	
 	mov	getsrc(src), rip
-
-d2:	mov	r2, dest
+	
+	;; INCREMENT PROGRAM COUNTER HERE, AFTER SRC REG RETRIEVED
+d2:
+	;; 	add	$1,wpc
+	mov	r2, dest
 	sar	$19, dest
 	and	$0b1111, dest
 	jmp	loopd
@@ -131,40 +132,62 @@ w3d3:	mov 	ir, dest
 	and	$0b1111, dest
 	and 	$0b111, opcode
 	mov	opload(opcode), rip
-
+	
 wldr:	add	reg, src
 	mov	wmem(src), src
 	mov	regjmp(dest), rip
 
 wldu:	cmp	$0, reg
-	jl	wldr
+	jl	wldu3
 	add	src, reg
 	mov	ldubase(temp), rip
 
-wldu2:	mov	wmem(src), src
+;;; if positive
+wldu2:  jl	wldu4
+	mov	wmem(src), src
+	mov	regjmp(dest), rip
+;;; if negative
+wldu3:	add	src, reg
+	mov	ldubase(temp),rip
+wldu4:	add 	reg,src
+	mov	wmem(src), src
 	mov	regjmp(dest), rip
 	
 wstr:	mov	getd3dest(dest), rip
 	
 wstu:	mov	getd3dest(dest), rip
-wstu3:	cmp	$0, reg
-	jl	wstr
-	add	src, reg
-	mov	stubase(temp), rip
 
-wstu2:	mov	dest, wmem(src)
-	add	$1, wpc
-	jmp	loop
-	
 w4d3:	cmp	$3, opcode
 	je	wstu3
-	
+
+;;; doing str
 	add 	reg, src
 	mov	dest, wmem(src)
 	add	$1, wpc
 	jmp	loop
 
-wadr:	
+;;; doing stu
+wstu3:	cmp	$0, reg
+	jl	wstu4
+	add	src, reg
+	mov	stubase(temp), rip
+
+wstu2: 	jl	wstu5
+	mov	dest, wmem(src)
+	add	$1, wpc
+	jmp	loop
+	
+;;; if negative
+wstu4: 	add	src,reg
+	mov	stubase(temp),rip
+
+wstu5:	add	reg,src
+	mov	dest,wmem(src)
+	add	$1,wpc
+	jmp	loop
+	
+wadr:	add	reg,src
+	mov	regjmp(dest),rip
 loopd:	
 	;; Checks Shift/Bit14
 	mov	ir, temp
@@ -251,47 +274,38 @@ fma2:	mov	opjmp(opcode), rip
 halt:	trap	$SysHalt
 
 wadd:	add	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 
 wadc:	add	value, src
 	mov 	wccr, temp
-	mov	ccr, wccr
 	and	0b10, temp
 	cmp	$0, temp
 	je	wadcjmp
 	add	$1, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wadcjmp:mov	regjmp(dest), rip	
 wsub:	sub	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wcmp:	sub	value, src
 	mov	ccr, wccr
 	add	$1, wpc
 	jmp	loop
 weor:	xor	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 worr:	or	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wand:	and	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wtst:	and	value, src
-	mov	ccr, wccr
+	add	$1, wpc
+	jmp	loop
 wmul:	mul	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wmla:	mul	reg2, reg3
 	add	reg3, reg
-	mov	ccr, wccr
 	mov	reg, src
 	mov	regjmp(dest), rip
 wdiv:	div	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wmov:	mov	ir, temp
 	shr	$14,temp
@@ -314,12 +328,10 @@ wmvn:	mov	ir, temp
 
 	je	wmvnV
 	xor	$0b11111111111111111111111111111111,reg2
-	mov	ccr,wccr
 	mov	reg2, src
 	mov	regjmp(dest), rip
 	
 wmvnV:	xor	$0b11111111111111111111111111111111,value
-	mov	ccr,wccr
 	mov	value, src
 	mov	regjmp(dest), rip
 	
@@ -561,7 +573,7 @@ grrr15:	mov	wr15, reg3
 	jmp	fma2
 	
 rr0:	mov	src, wr0
-	add	$1, wpc
+ 	add	$1, wpc
 	jmp	loop
 rr1:	mov	src, wr1
 	add	$1, wpc
@@ -606,7 +618,7 @@ rr14:	mov	src, wr14
 	add	$1, wpc
 	jmp	loop
 rr15:	mov	src, wr15
-	add	$1, wpc
+	add	$1, wpc		
 	jmp	loop
 
 ;;; load/multiple
@@ -846,18 +858,423 @@ pla:	mov	wr0, r0
 	mov	r0, wr0
 	add	$1, wpc
 	jmp	loop
+
+gchars:	trap	$SysGetChar
+	mov	r0, wr0
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+gnums:	trap	$SysGetNum
+	mov	r0, wr0
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+pchars:	mov	wr0, r0
+	trap	$SysPutChar
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+pnums:	mov	wr0, r0
+	trap	$SysPutNum
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+ents:	trap	$SysEntropy
+	mov	r0, wr0
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+overs:	mov	wr0, r0
+	trap	$SysOverlay
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+plas:	mov	wr0, r0
+	trap	$SysPLA
+	mov	r0, wr0
+	cmp	$0,wr0
+	mov	ccr,wccr
+	add	$1, wpc
+	jmp	loop
+
+;;; ---------------------------- S ---------------------------------------
+
+d3s:	mov	ir, reg
+	and	$0b11111111111111, reg
+	mov	ir, temp
+	sar	$14, temp
+	and	$0b1, temp
+	cmp	$0, temp
+	je	w2d3s
 	
+	mov	ir, shop
+	sar	$10, shop
+	and	$0b11, shop
+
+	mov 	ir, reg
+	and	$0b1111, reg
+	mov	getd3reg(reg), rip
+	
+wd3s:	mov	ir, value
+	and	$0b111111, value
+	mov	shopd3jmps(shop), rip
+
+w2d3s:	mov	ir, src
+	sar	$15, src
+	and	$0b1111, src
+	mov	src, temp
+	mov	getd3srcs(src), rip	
+
+w3d3s:	mov 	ir, dest
+	sar	$19, dest
+	and	$0b1111, dest
+	and 	$0b111, opcode
+	mov	oploads(opcode), rip
+	
+wldrs:	add	reg, src
+	mov	wmem(src), src
+	mov	regjmp(dest), rip
+
+wldus:	cmp	$0, reg
+	jl	wldu3s
+	add	src, reg
+	mov	ldubases(temp), rip
+
+;;; if positive
+wldu2s:  jl	wldu4s
+	mov	wmem(src), src
+	mov	regjmp(dest), rip
+;;; if negative
+wldu3s:	add	src, reg
+	mov	ldubases(temp),rip
+wldu4s:	add 	reg,src
+	mov	wmem(src), src
+	mov	regjmp(dest), rip
+	
+wstrs:	mov	getd3dests(dest), rip
+	
+wstus:	mov	getd3dests(dest), rip
+
+w4d3s:	cmp	$3, opcode
+	je	wstu3s
+
+;;; doing str
+	add 	reg, src
+	mov	dest, wmem(src)
+	add	$1, wpc
+	jmp	loop
+
+;;; doing stu
+wstu3s:	cmp	$0, reg
+	jl	wstu4s
+	add	src, reg
+	mov	stubases(temp), rip
+
+wstu2s: jl	wstu5s
+	mov	dest, wmem(src)
+	add	$1, wpc
+	jmp	loop
+	
+;;; if negative
+wstu4s: add	src,reg
+	mov	stubases(temp),rip
+
+wstu5s:	add	reg,src
+	mov	dest,wmem(src)
+	add	$1,wpc
+	jmp	loop
+
+wadrs:	
+	
+wadds:	add	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+
+wadcs:	add	value, src
+	mov 	wccr, temp
+	mov	ccr, wccr
+	and	0b10, temp
+	cmp	$0, temp
+	je	wadcjmp
+	add	$1, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wsubs:	sub	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wcmps:	sub	value, src
+	mov	ccr, wccr
+	add	$1, wpc
+	jmp	loop
+weors:	xor	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+worrs:	or	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wands:	and	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wtsts:	and	value, src
+	mov	ccr, wccr
+	add	$1, wpc
+	jmp 	loop
+wmuls:	mul	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wmlas:	mul	reg2, reg3
+	add	reg3, reg
+	mov	ccr, wccr
+	mov	reg, src
+	mov	regjmp(dest), rip
+wdivs:	div	value, src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+wmovs:	mov	ir, temp
+	shr	$14,temp
+	and	$1,temp
+	mov	temp, r0
+	cmp	$0,temp
+
+	je	wmovVs
+	mov	reg2, src
+	cmp	$0,src
+	mov	ccr, wccr
+	mov	regjmp(dest), rip
+	
+wmovVs:	mov	value, src
+	cmp	$0,src
+	mov	ccr,wccr
+	mov	regjmp(dest), rip
+
+wmvns:	mov	ir, temp
+	shr	$14,temp
+	and	$1,temp
+	mov	temp, r0
+	cmp	$0,temp
+
+	je	wmvnVs
+	xor	$0b11111111111111111111111111111111,reg2
+	mov	ccr,wccr
+	mov	reg2, src
+	mov	regjmp(dest), rip
+	
+wmvnVs:	xor	$0b11111111111111111111111111111111,value
+	mov	ccr,wccr
+	mov	value, src
+	mov	regjmp(dest), rip
+	
+wswis:	mov	swijmps(value), rip
+
+;;; load/multiple
+sd3lsls:	shl	value, reg
+	jmp	w2d3s
+sd3lsrs:	shr	value, reg
+	jmp	w2d3s
+sd3asrs:	sar	value, reg
+	jmp	w2d3s
+sd3rors:	mov	$32,shop
+	sub	value,shop
+	mov	reg,temp
+	shl	shop,temp
+	shr	value,reg
+	xor	temp,reg
+	jmp	w2d3s
+
+
+gd0s:	mov	wr0, reg
+	jmp	wd3s
+gd1s:	mov	wr1, reg
+	jmp	wd3s
+gd2s:	mov	wr2, reg
+	jmp	wd3s
+gd3s:	mov	wr3, reg
+	jmp	wd3s
+gd4s:	mov	wr4, reg
+	jmp	wd3s
+gd5s:	mov	wr5, reg
+	jmp	wd3s
+gd6s:	mov	wr6, reg
+	jmp	wd3s
+gd7s:	mov	wr7, reg
+	jmp	wd3s
+gd8s:	mov	wr8, reg
+	jmp	wd3s
+gd9s:	mov	wr9, reg
+	jmp	wd3s
+gd10s:	mov	wr10, reg
+	jmp	wd3s
+gd11s:	mov	wr11, reg
+	jmp	wd3s
+gd12s:	mov	wr12, reg
+	jmp	wd3s
+gd13s:	mov	wr13, reg
+	jmp	wd3s
+gd14s:	mov	wr14, reg
+	jmp	wd3s
+gd15s:	mov	wr15, reg
+	jmp	wd3s
+
+wgd0s:	mov	wr0, src
+	jmp	w3d3s
+wgd1s:	mov	wr1, src
+	jmp	w3d3s
+wgd2s:	mov	wr2, src
+	jmp	w3d3s
+wgd3s:	mov	wr3, src
+	jmp	w3d3s
+wgd4s:	mov	wr4, src
+	jmp	w3d3s
+wgd5s:	mov	wr5, src
+	jmp	w3d3s
+wgd6s:	mov	wr6, src
+	jmp	w3d3s
+wgd7s:	mov	wr7, src
+	jmp	w3d3s
+wgd8s:	mov	wr8, src
+	jmp	w3d3s
+wgd9s:	mov	wr9, src
+	jmp	w3d3s
+wgd10s:	mov	wr10, src
+	jmp	w3d3s
+wgd11s:	mov	wr11, src
+	jmp	w3d3s
+wgd12s:	mov	wr12, src
+	jmp	w3d3s
+wgd13s:	mov	wr13, src
+	jmp	w3d3s
+wgd14s:	mov	wr14, src
+	jmp	w3d3s
+wgd15s:	mov	wr15, src
+	jmp	w3d3s
+
+wgdest0s:	mov	wr0, dest
+	jmp	w4d3s
+wgdest1s:	mov	wr1, dest
+	jmp	w4d3s
+wgdest2s:	mov	wr2, dest
+	jmp	w4d3s
+wgdest3s:	mov	wr3, dest
+	jmp	w4d3s
+wgdest4s:	mov	wr4, dest
+	jmp	w4d3s
+wgdest5s:	mov	wr5, dest
+	jmp	w4d3s
+wgdest6s:	mov	wr6, dest
+	jmp	w4d3s
+wgdest7s:	mov	wr7, dest
+	jmp	w4d3s
+wgdest8s:	mov	wr8, dest
+	jmp	w4d3s
+wgdest9s:	mov	wr9, dest
+	jmp	w4d3s
+wgdest10s:	mov	wr10, dest
+	jmp	w4d3s
+wgdest11s:	mov	wr11, dest
+	jmp	w4d3s
+wgdest12s:	mov	wr12, dest
+	jmp	w4d3s
+wgdest13s:	mov	wr13, dest
+	jmp	w4d3s
+wgdest14s:	mov	wr14, dest
+	jmp	w4d3s
+wgdest15s:	mov	wr15, dest
+	jmp	w4d3s
+
+b0s:	mov	reg, wr0
+	jmp	wldu2s
+b1s:	mov	reg, wr1
+	jmp	wldu2s
+b2s:	mov	reg, wr2
+	jmp	wldu2s
+b3s:	mov	reg, wr3
+	jmp	wldu2s
+b4s:	mov	reg, wr4
+	jmp	wldu2s
+b5s:	mov	reg, wr5
+	jmp	wldu2s
+b6s:	mov	reg, wr6
+	jmp	wldu2s
+b7s:	mov	reg, wr7
+	jmp	wldu2s
+b8s:	mov	reg, wr8
+	jmp	wldu2s
+b9s:	mov	reg, wr9
+	jmp	wldu2s
+b10s:	mov	reg, wr10
+	jmp	wldu2s
+b11s:	mov	reg, wr11
+	jmp	wldu2s
+b12s:	mov	reg, wr12
+	jmp	wldu2s
+b13s:	mov	reg, wr13
+	jmp	wldu2s
+b14s:	mov	reg, wr14
+	jmp	wldu2s
+b15s:	mov	reg, wr15
+	jmp	wldu2s
+	
+s0s:	mov	reg, wr0
+	jmp	wstu2s
+s1s:	mov	reg, wr1
+	jmp	wstu2s
+s2s:	mov	reg, wr2
+	jmp	wstu2s
+s3s:	mov	reg, wr3
+	jmp	wstu2s
+s4s:	mov	reg, wr4
+	jmp	wstu2s
+s5s:	mov	reg, wr5
+	jmp	wstu2s
+s6s:	mov	reg, wr6
+	jmp	wstu2s
+s7s:	mov	reg, wr7
+	jmp	wstu2s
+s8s:	mov	reg, wr8
+	jmp	wstu2s
+s9s:	mov	reg, wr9
+	jmp	wstu2s
+s10s:	mov	reg, wr10
+	jmp	wstu2s
+s11s:	mov	reg, wr11
+	jmp	wstu2s
+s12s:	mov	reg, wr12
+	jmp	wstu2s
+s13s:	mov	reg, wr13
+	jmp	wstu2s
+s14s:	mov	reg, wr14
+	jmp	wstu2s
+s15s:	mov	reg, wr15
+	jmp	wstu2s
+
+;;; ---------------------------- S COMPLETE ----------------------------------
 ;;; d0 add, d1 compare, d2 mov, d3 swi
-opdecode:	.data 	d0,d0,d0,d1,d0,d0,d0,d1
+opdecode:
+	.data 	d0,d0,d0,d1,d0,d0,d0,d1
 	.data	d0,d0,d0,d2,d2,bit14,halt, halt
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
 	.data	wbranch, wbranch, wbranchl, wbranchl,
+	.data	halt,halt,halt,halt
+	;; part 2 of table
+	.data	d0,d0,d0,d1,d0,d0,d0,d1
+	.data	d0,d0,d0,d2,d2,bit14,halt, halt
+	.data	d3s, d3s, d3s, d3s, d3s, halt, halt, halt
 	
 shjmp:	.data	shiftNum, shiftReg, fma
-opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand
-	.data	wtst,wmul,wmla,wdiv,wmov,wmvn,wswi,halt
+opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand,wtst
+	.data	wmul,wmla,wdiv,wmov,wmvn,wswi,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
+	.data	wadds,wadcs,wsubs,wcmps,weors,worrs,wands,wtsts
+	.data	wmuls,wmlas,wdivs,wmovs,wmvns,wswis,halt,halt
+	.data	halt,halt,halt,halt,halt,halt,halt,halt
+	.data	halt,halt,halt,halt,halt,halt,halt
 
 getsrc: .data	gs0, gs1, gs2, gs3, gs4, gs5, gs6, gs7
 	.data	gs8, gs9, gs10, gs11, gs12, gs13, gs14, gs15
@@ -889,6 +1306,7 @@ regjmp:	.data	rr0, rr1, rr2, rr3, rr4, rr5, rr6, rr7
 shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
 shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
+swijmps:	.data	halt, gchars, gnums, pchars, pnums, ents, overs, plas
 
 opload:		.data 	wldr, wstr, wldu, wstu, wadr
 getd3reg: .data	gd0, gd1, gd2, gd3, gd4, gd5, gd6, gd7
@@ -903,8 +1321,31 @@ getd3src: .data	wgd0, wgd1, wgd2, wgd3, wgd4, wgd5, wgd6, wgd7
 getd3dest: .data	wgdest0, wgdest1, wgdest2, wgdest3, wgdest4, wgdest5,
 	.data	wgdest6, wgdest7, wgdest8, wgdest9, wgdest10, wgdest11,
 	.data	wgdest12, wgdest13, wgdest14, wgdest15
-
 cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
+
+;;; ---------------------------------- S ------------------------------------
+
+oploads:
+	.data 	wldrs, wstrs, wldus, wstus, wadrs
+getd3regs:
+	.data	gd0s, gd1s, gd2s, gd3s, gd4s, gd5s, gd6s, gd7s
+	.data	gd8s, gd9s, gd10s, gd11s, gd12s, gd13s, gd14s, gd15s
+ldubases:
+	.data	b0s, b1s, b2s, b3s, b4s, b5s, b6s, b7s
+	.data	b8s, b9s, b10s, b11s, b12s, b13s, b14s, b15s
+stubases:
+	.data	s0s, s1s, s2s, s3s, s4s, s5s, s6s, s7s
+	.data	s8s, s9s, s10s, s11s, s12s, s13s, s14s, s15s
+shopd3jmps:
+	.data	sd3lsls, sd3lsrs, sd3asrs, sd3rors
+getd3srcs:
+	.data	wgd0s, wgd1s, wgd2s, wgd3s, wgd4s, wgd5s, wgd6s, wgd7s
+	.data	wgd8s, wgd9s, wgd10s, wgd11s, wgd12s, wgd13s, wgd14s, wgd15s
+getd3dests:
+	.data	wgdest0s, wgdest1s, wgdest2s, wgdest3s, wgdest4s, wgdest5s,
+	.data	wgdest6s, wgdest7s, wgdest8s, wgdest9s, wgdest10s, wgdest11s,
+	.data	wgdest12s, wgdest13s, wgdest14s, wgdest15s
+
 ;;; assume left hand source in r2, right hand source in r3
 	
 wregs:
