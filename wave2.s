@@ -24,40 +24,11 @@ loopb:	cmp	$0x06800000, ir
 cbits:	mov	ir,temp
 	shr	$29,temp
 	and	$0b111,temp
-	mov	cjmp(temp),rip
+dop:	mov	ir, opcode
+	sar	$23, opcode
+	and	$0b11111, opcode
+	mov	opdecode(opcode), rip
 
-wbal:   jmp	dop
-wbnv:	add	$1,wpc
-	jmp	loop
-wbeq:	mov	wccr,ccr
-	je	dop
-	add	$1,wpc
-	jmp	loop
-wbne:	mov	wccr,ccr
-	jne	dop
-	add	$1,wpc
-	jmp	loop
-wblt:	mov	wccr,ccr
-	jl	dop
-	add	$1,wpc
-	jmp	loop
-
-wble:	mov	wccr,ccr
-	jle	dop
-	add	$1,wpc
-	jmp	loop
-wbge:	mov	wccr,ccr
-	jge	dop
-	add	$1,wpc
-	jmp	loop
-
-	
-wbgt:	mov	wccr,ccr
-	jg	dop
-	add	$1,wpc
-	jmp	loop
-
-	
 branch:
 	mov	ir, value
 	and	$0xffffff, value
@@ -74,13 +45,7 @@ branchf:add	ir,wpc
 	jmp	loopb
 	
 branchlf:
-branchlb:
-
-dop:	mov	ir, opcode
-	sar	$23, opcode
-	and	$0b11111, opcode
-	mov	opdecode(opcode), rip
-	
+branchlb:	
 	
 d2:	mov	r2, dest
 	sar	$19, dest
@@ -185,47 +150,37 @@ fma2:	mov	opjmp(opcode), rip
 halt:	trap	$SysHalt
 
 wadd:	add	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 
 wadc:	add	value, src
 	mov 	wccr, temp
-	mov	ccr, wccr
 	and	0b10, temp
 	cmp	$0, temp
 	je	wadcjmp
 	add	$1, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wadcjmp:mov	regjmp(dest), rip	
 wsub:	sub	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wcmp:	sub	value, src
-	mov	ccr, wccr
 	add	$1, wpc
 	jmp	loop
 weor:	xor	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 worr:	or	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wand:	and	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wtst:	and	value, src
-	mov	ccr, wccr
+	add	$1, wpc
+	jmp	loop
 wmul:	mul	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wmla:	mul	reg2, reg3
 	add	reg3, reg
-	mov	ccr, wccr
 	mov	reg, src
 	mov	regjmp(dest), rip
 wdiv:	div	value, src
-	mov	ccr, wccr
 	mov	regjmp(dest), rip
 wmov:	mov	ir, temp
 	shr	$14,temp
@@ -248,12 +203,10 @@ wmvn:	mov	ir, temp
 
 	je	wmvnV
 	xor	$0b11111111111111111111111111111111,reg2
-	mov	ccr,wccr
 	mov	reg2, src
 	mov	regjmp(dest), rip
 	
 wmvnV:	xor	$0b11111111111111111111111111111111,value
-	mov	ccr,wccr
 	mov	value, src
 	mov	regjmp(dest), rip
 	
@@ -645,8 +598,6 @@ shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 
 bjmp:		.data	branchf, branchf, branchlf, branchlb
-
-cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 ;;; assume left hand source in r2, right hand source in r3
 	
 wregs:

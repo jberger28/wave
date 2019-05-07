@@ -68,9 +68,8 @@ wbranch:add	ir,wpc
 	jmp	loopb
 	
 wbranchl:
-	mov	wpc,temp
-	add	$1,temp
-	mov	warm(temp),wlr
+	mov	wpc,wlr
+	add	$1,wlr
 	add	ir,wpc
 	and	$0xffffff,wpc
 	mov	wpc, r0
@@ -364,6 +363,146 @@ wmvnV:	xor	$0b11111111111111111111111111111111,value
 	
 wswi:	mov	swijmp(value), rip
 
+wldm:	and	$0xffff, value
+
+wldm0:	test	value, $0b1
+	je	wldm1
+	add	$1, dest
+	mov	wr0, r0
+wldm1:	test	value, $0b10
+	je	wldm2
+	add	$1, dest
+	mov	wr1, r1
+wldm2:	test	value, $0b100
+	je	wldm3
+	add	$1, dest
+	mov	wr2, r2
+wldm3:	test	value, $0b1000
+	je	wldm4
+	add	$1, dest
+	mov	wr3, r3
+wldm4:	test	value, $0b10000
+	je	wldm5
+	add	$1, dest
+	mov	wr4, r4
+wldm5:	test	value, $0b100000
+	je	wldm6
+	add	$1, dest
+	mov	wr5, r5
+wldm6:	test	value, $0b1000000
+	je	wldm7
+	add	$1, dest
+	mov	wr6, r6
+wldm7:	test	value, $0b10000000
+	je	wldm8
+	add	$1, dest
+	mov	wr7, r7
+wldm8:	test	value, $0b100000000
+	je	wldm9
+	add	$1, dest
+	mov	wr8, r8
+wldm9:	test	value, $0b1000000000
+	je	wldm10
+	add	$1, dest
+	mov	wr9, r9
+wldm10:	test	value, $0b10000000000
+	je	wldm11
+	add	$1, dest
+	mov	wr10, r10
+wldm11:	test	value, $0b100000000000
+	je	wldm12
+	add	$1, dest
+	mov	wr11, r11
+wldm12:	test	value, $0b1000000000000
+	je	wldm13
+	add	$1, dest
+	mov	wr12, r12
+wldm13:	test	value, $0b10000000000000
+	je	wldm14
+	add	$1, dest
+	mov	wr13, r13
+wldm14:	test	value, $0b100000000000000
+	je	wldm15
+	add	$1, dest
+	mov	wr14, r14
+wldm15:	test	value, $0b1000000000000000
+	je	wldmf
+	add	$1, dest
+	mov	wr15, r15
+
+wldmf:	add	$1, wpc
+	jmp	loop
+	
+wstm:	and	$0xffff, value
+
+wstm15:	test	value, $0b1000000000000000
+	je	wstm14
+	sub	$1, dest
+	mov	wr15, dest
+wstm14:	test	value, $0b100000000000000
+	je	wstm13
+	sub	$1, dest
+	mov	wr14, dest
+wstm13:	test	value, $0b10000000000000
+	je	wstm12
+	sub	$1, dest
+	mov	wr13, dest
+wstm12:	test	value, $0b1000000000000
+	je	wstm11
+	sub	$1, dest
+	mov	wr12, dest
+wstm11:	test	value, $0b100000000000
+	je	wstm10
+	sub	$1, dest
+	mov	wr11, dest
+wstm10:	test	value, $0b10000000000
+	je	wstm9
+	sub	$1, dest
+	mov	wr10, dest
+wstm9:	test	value, $0b1000000000
+	je	wstm8
+	sub	$1, dest
+	mov	wr9, dest
+wstm8:	test	value, $0b100000000
+	je	wstm7
+	sub	$1, dest
+	mov	wr8, dest
+wstm7:	test	value, $0b10000000
+	je	wstm6
+	sub	$1, dest
+	mov	wr7, dest
+wstm6:	test	value, $0b1000000
+	je	wstm5
+	sub	$1, dest
+	mov	wr6, dest
+wstm5:	test	value, $0b100000
+	je	wstm4
+	sub	$1, dest
+	mov	wr5, dest
+wstm4:	test	value, $0b10000
+	je	wstm3
+	sub	$1, dest
+	mov	wr4, dest
+wstm3:	test	value, $0b1000
+	je	wstm2
+	sub	$1, dest
+	mov	wr3, dest
+wstm2:	test	value, $0b100
+	je	wstm1
+	sub	$1, dest
+	mov	wr2, dest
+wstm1:	test	value, $0b10
+	je	wstm0
+	sub	$1, dest
+	mov	wr1, dest
+wstm0:	test	value, $0b1
+	je	wstmf
+	sub	$1, dest
+	mov	wr0, dest
+
+wstmf:	add	$1, wpc
+	jmp	loop
+	
 gs0:	mov	wr0, src
 	jmp	loopd
 gs1:	mov	wr1, src
@@ -1052,8 +1191,7 @@ worrs:	or	value, src
 wands:	and	value, src
 	mov	ccr, wccr
 	mov	regjmp(dest), rip
-wtsts:	and	value, src
-	mov	ccr, wccr
+wtsts:	test	value, src
 	;; 	add	$1, wpc
 	jmp 	loop
 wmuls:	mul	value, src
@@ -1103,6 +1241,9 @@ wmvnVs:	xor	$0b11111111111111111111111111111111,value
 	
 wswis:	mov	swijmps(value), rip
 
+wstms:
+	
+wldms:	
 ;;; load/multiple
 sd3lsls:	shl	value, reg
 	jmp	w2d3s
@@ -1288,7 +1429,7 @@ s15s:	mov	reg, wr15
 ;;; d0 add, d1 compare, d2 mov, d3 swi
 opdecode:
 	.data 	d0,d0,d0,d1,d0,d0,d0,d1
-	.data	d0,d0,d0,d2,d2,bit14,halt, halt
+	.data	d0,d0,d0,d2,d2,bit14,d2,d2
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
 	.data	wbranch, wbranch, wbranchl, wbranchl,
 	.data	halt,halt,halt,halt
@@ -1299,7 +1440,7 @@ opdecode:
 	
 shjmp:	.data	shiftNum, shiftReg, fma
 opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand,wtst
-	.data	wmul,wmla,wdiv,wmov,wmvn,wswi,halt,halt
+	.data	wmul,wmla,wdiv,wmov,wmvn,wswi,wldm,wstm
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	wadds,wadcs,wsubs,wcmps,weors,worrs,wands,wtsts
