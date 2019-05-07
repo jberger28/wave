@@ -16,10 +16,8 @@
 	lea	warm,r0
 	trap	$SysOverlay
 
-	.equ	wmem, -16777216
-;;; prolog ??
-	mov	rsp,rbp
-	sub	$16777216,rsp
+	;; 	.equ	wmem, -67108864
+;;; prolog ??mov	rsp,rbp sub	$16777216,rsp
 
 loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
@@ -101,6 +99,10 @@ d2:
 	
 d3:	mov	ir, reg
 	and	$0b11111111111111, reg
+	shl	$18,reg
+	sar	$18,reg
+	;; next line saves value of displacement
+	mov	reg,exp
 	mov	ir, temp
 	sar	$14, temp
 	and	$0b1, temp
@@ -133,7 +135,9 @@ w3d3:	mov 	ir, dest
 	
 wldr:	add	$1,wpc
 	add	reg, src
-	mov	wmem(src), src
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
 	mov	regjmp(dest), rip
 
 wldu:	add	$1,wpc
@@ -144,13 +148,17 @@ wldu:	add	$1,wpc
 
 ;;; if positive
 wldu2:  jl	wldu4
-	mov	wmem(src), src
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
 	mov	regjmp(dest), rip
 ;;; if negative
 wldu3:	add	src, reg
 	mov	ldubase(temp),rip
 wldu4:	add 	reg,src
-	mov	wmem(src), src
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
 	mov	regjmp(dest), rip
 	
 wstr:	add	$1,wpc
@@ -164,7 +172,9 @@ w4d3:	cmp	$3, opcode
 
 ;;; doing str
 	add 	reg, src
-	mov	dest, wmem(src)
+	lea	warm,r0
+	add	r0,src
+	mov	dest, 0(src)
 	;; 	add	$1, wpc
 	jmp	loop
 
@@ -174,8 +184,12 @@ wstu3:	cmp	$0, reg
 	add	src, reg
 	mov	stubase(temp), rip
 
-wstu2: 	jl	wstu5
-	mov	dest, wmem(src)
+wstu2:				;this is bad but it might work
+	cmp	$0,exp
+	jl	wstu5
+	lea	warm,r0
+	add	r0,src
+	mov	dest, 0(src)
 	;; 	add	$1, wpc
 	jmp	loop
 	
@@ -183,8 +197,10 @@ wstu2: 	jl	wstu5
 wstu4: 	add	src,reg
 	mov	stubase(temp),rip
 
-wstu5:	add	reg,src
-	mov	dest,wmem(src)
+wstu5:	add	exp,src
+	lea	warm,r0
+	add	r0,src
+	mov	dest,0(src)
 	;; 	add	$1,wpc
 	jmp	loop
 	
@@ -895,6 +911,10 @@ plas:	mov	wr0, r0
 
 d3s:	mov	ir, reg
 	and	$0b11111111111111, reg
+	shl	$18,reg
+	sar	$18,reg
+	;; next line saves value of displacement
+	mov	reg,exp	
 	mov	ir, temp
 	sar	$14, temp
 	and	$0b1, temp
@@ -927,7 +947,9 @@ w3d3s:	mov 	ir, dest
 	
 wldrs:	add	$1,wpc
 	add	reg, src
-	mov	wmem(src), src
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
 	mov	regjmp(dest), rip
 
 wldus:	add	$1,wpc
@@ -937,14 +959,25 @@ wldus:	add	$1,wpc
 	mov	ldubases(temp), rip
 
 ;;; if positive
-wldu2s:  jl	wldu4s
-	mov	wmem(src), src
+wldu2s:	cmp	$0,exp
+	jl	wldu4s
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
+	cmp	$0,src
+	mov	ccr,wccr
+	and	$0b1100,wccr
 	mov	regjmp(dest), rip
 ;;; if negative
 wldu3s:	add	src, reg
 	mov	ldubases(temp),rip
 wldu4s:	add 	reg,src
-	mov	wmem(src), src
+	lea	warm,r0
+	add	r0,src
+	mov	0(src), src
+	cmp	$0,src
+	mov	ccr,wccr
+	and	$0b1100,wccr
 	mov	regjmp(dest), rip
 	
 wstrs:	add	$1,wpc
@@ -958,7 +991,9 @@ w4d3s:	cmp	$3, opcode
 
 ;;; doing str
 	add 	reg, src
-	mov	dest, wmem(src)
+	lea	warm,r0
+	add	r0,src
+	mov	dest, 0(src)
 	add	$1, wpc
 	jmp	loop
 
@@ -969,7 +1004,9 @@ wstu3s:	cmp	$0, reg
 	mov	stubases(temp), rip
 
 wstu2s: jl	wstu5s
-	mov	dest, wmem(src)
+	lea	warm,r0
+	add	r0,src
+	mov	dest, 0(src)
 	add	$1, wpc
 	jmp	loop
 	
@@ -978,7 +1015,9 @@ wstu4s: add	src,reg
 	mov	stubases(temp),rip
 
 wstu5s:	add	reg,src
-	mov	dest,wmem(src)
+	lea	warm,r0
+	add	r0,src
+	mov	dest,0(src)
 	add	$1,wpc
 	jmp	loop
 
