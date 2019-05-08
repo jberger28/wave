@@ -21,12 +21,10 @@
 
 loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
-loopb:	cmp	$0x06800000, ir
-	je	halt
+loopb:	
 
 cbits:	mov	ir,temp
 	shr	$29,temp
-	and	$0b111,temp
 	mov	cjmp(temp),rip
 
 wbnv:	add	$1,wpc
@@ -76,7 +74,7 @@ wbranchl:
 	jmp	loopb	
 		
 dop:	mov	ir, opcode
-	sar	$23, opcode
+	shr	$23, opcode
 	and	$0b111111, opcode
 	mov	opdecode(opcode), rip
 	
@@ -130,6 +128,7 @@ w3d3:	mov 	ir, dest
 	sar	$19, dest
 	and	$0b1111, dest
 	;; and 	$0b111, opcode
+ 	add	$1,wpc
 	mov	opjmp(opcode), rip
 
 w2d3:	mov	ir, shop
@@ -231,17 +230,17 @@ shiftNum:
 	sar	$10, shop
 	and	$0b11, shop
 
-	mov	ir, reg2
-	sar	$6, reg2
-	and	$0b1111, reg2
+	mov	ir, value
+	sar	$6, value
+	and	$0b1111, value
 
 	mov	ir, shiftCount
 	and	$0b111111, shiftCount
 
-getNumReg2:	mov	getreg2(reg2), rip
+	mov	wregs(value), value 
 
 shiftNum2:	mov	shopVjmp(shop), rip
-shiftNum3:	mov	reg2, value
+shiftNum3:	
 ;;; INCREMENT PROGRAM COUNTER
 		add	$1,wpc
 		mov	opjmp(opcode), rip
@@ -255,13 +254,13 @@ shiftReg:
 	and	$0b1111, reg
 	mov	getreg(reg), rip
 	
-getReg2:mov	ir, reg2
-	sar	$6, reg2
-	and	$0b1111, reg2
-	mov	getR2(reg2), rip
+getReg2:mov	ir, value
+	sar	$6, value
+	and	$0b1111, value
+	mov	wregs(value), value
 
 shiftReg2:	mov	shopRjmp(shop), rip
-shiftReg3:	mov	reg2, value
+shiftReg3:
 ;;; INCREMENT PROGRAM COUNTER
 		add 	$1,wpc
 		mov	opjmp(opcode), rip
@@ -291,7 +290,8 @@ fma2:
 halt:	trap	$SysHalt
 
 wadd:	add	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 
 wadc:	add	value, src
 	mov 	wccr, temp
@@ -299,58 +299,44 @@ wadc:	add	value, src
 	cmp	$0, temp
 	je	wadcjmp
 	add	$1, src
-	mov	regjmp(dest), rip
-wadcjmp:mov	regjmp(dest), rip	
+	mov	src,wregs(dest)
+	jmp	loop
+wadcjmp:mov	src,wregs(dest)
+	jmp	loop
 wsub:	sub	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 wcmp:	sub	value, src
 	mov	ccr, wccr
 	;; 	add	$1, wpc
 	jmp	loop
 weor:	xor	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 worr:	or	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 wand:	and	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 wtst:	and	value, src
-	;; 	add	$1, wpc
 	jmp	loop
 wmul:	mul	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
 wmla:	mul	reg2, reg3
 	add	reg3, reg
-	mov	reg, src
-	mov	regjmp(dest), rip
+	mov	reg,wregs(dest)
+	jmp	loop
 wdiv:	div	value, src
-	mov	regjmp(dest), rip
-wmov:	mov	ir, temp
-	shr	$14,temp
-	and	$1,temp
-	mov	temp, r0
-	cmp	$0,temp
-
-	je	wmovV
-	mov	reg2, src
-	mov	regjmp(dest), rip
-	
-wmovV:	mov	value, src
-	mov	regjmp(dest), rip
-
-wmvn:	mov	ir, temp
-	shr	$14,temp
-	and	$1,temp
-	mov	temp, r0
-	cmp	$0,temp
-
-	je	wmvnV
-	xor	$0b11111111111111111111111111111111,reg2
-	mov	reg2, src
-	mov	regjmp(dest), rip
-	
-wmvnV:	xor	$0b11111111111111111111111111111111,value
-	mov	value, src
-	mov	regjmp(dest), rip
+	mov	src,wregs(dest)
+	jmp	loop
+wmov:	mov	value,wregs(dest)
+	jmp	loop
+		
+wmvn:	xor	$0b11111111111111111111111111111111,value
+	mov	value,wregs(dest)
+	jmp	loop
 	
 wswi:	mov	swijmp(value), rip
 
@@ -870,32 +856,32 @@ s14:	mov	reg, wr14
 s15:	mov	reg, wr15
 	jmp	wstu2
 
-sVlsl:	shl	shiftCount, reg2
+sVlsl:	shl	shiftCount, value
 	jmp	shiftNum3
-sVlsr:	shr	shiftCount, reg2
+sVlsr:	shr	shiftCount, value
 	jmp	shiftNum3
-sVasr:	sar	shiftCount, reg2
+sVasr:	sar	shiftCount, value
 	jmp	shiftNum3
 sVror: 	mov	$32,shop
 	sub	shiftCount,shop
-	mov	reg2,temp
+	mov	value,temp
 	shl	shop,temp
-	shr	shiftCount,reg2
-	xor	temp,reg2
+	shr	shiftCount,value
+	xor	temp,value
 	jmp	shiftNum3
 
-sRlsl:	shl	reg, reg2
+sRlsl:	shl	reg, value
 	jmp	shiftReg3
-sRlsr:	shr	reg, reg2
+sRlsr:	shr	reg, value
 	jmp	shiftReg3
-sRasr:	sar	reg, reg2
+sRasr:	sar	reg, value
 	jmp	shiftReg3
 sRror:	mov	$32,shop
 	sub	reg,shop
-	mov	reg2,temp
+	mov	value,temp
 	shl	shop,temp
-	shr	reg,reg2
-	xor	temp,reg2
+	shr	reg,value
+	xor	temp,value
 	jmp	shiftNum3
 
 sd3lsl:	shl	value, reg
