@@ -19,7 +19,8 @@
 	;; 	.equ	wmem, -67108864
 ;;; prolog ??mov	rsp,rbp sub	$16777216,rsp
 
-loop:	mov	wpc,r1		;---------------BEGIN LOOP-----------------
+loop:	and	$0xffffff,wpc
+	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
 loopb:	
 
@@ -59,19 +60,19 @@ wbgt:	mov	wccr,ccr
 
 	
 wbranch:add	ir,wpc
-	and	$0xffffff,wpc
-	mov	wpc, r0
-	mov	warm(r0), ir
-	jmp	loopb
+	;; 	and	$0xffffff,wpc
+	;; 	mov	wpc, r0
+	;; 	mov	warm(r0), ir
+	jmp	loop
 	
 wbranchl:
 	mov	wpc,wlr
 	add	$1,wlr
 	add	ir,wpc
-	and	$0xffffff,wpc
-	mov	wpc, r0
-	mov	warm(r0), ir	
-	jmp	loopb	
+	;; 	and	$0xffffff,wpc	
+	;; 	mov	wpc, r0
+	;; 	mov	warm(r0), ir	
+	jmp	loop
 		
 dop:	mov	ir, opcode
 	shr	$23, opcode
@@ -144,10 +145,12 @@ wd3:	mov	ir, value
 	mov	shopd3jmp(shop), rip
 	
 wldr:	add	reg, src
-	lea	warm,r0
-	add	r0,src
-	mov	0(src), src
-	mov	src, wregs(dest)
+	and	$0xffffff,src
+	mov	warm(src), wregs(dest)
+	;; 	lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	0(src), src
+	;; 	mov	src, wregs(dest)
 	jmp	loop
 	
 wldu:	cmp	$0, reg
@@ -156,10 +159,12 @@ wldu:	cmp	$0, reg
 	mov	reg, wregs(temp)
 
 ;;; if positive
-wldu2:  lea	warm,r0
-	add	r0,src
-	mov	0(src), src
-	mov	src, wregs(dest)
+wldu2:  			;lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	0(src), src
+	;; 	mov	src, wregs(dest)
+	and	$0xffffff,src
+	mov	warm(src),wregs(dest)
 	jmp	loop
 	
 ;;; if negative
@@ -167,18 +172,23 @@ wldu3:	add	src, reg
 	mov	reg, wregs(temp)
 	
 wldu4:	add 	reg,src
-	lea	warm,r0
-	add	r0,src
-	mov	0(src), src
-	mov	regjmp(dest), rip
+	;; 	lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	0(src), src
+	and	$0xffffff,src
+	;; 	mov	regjmp(dest), rip
+	mov	warm(src),wregs(dest)
+	jmp	loop
 	
 wstr:	mov	wregs(dest), dest
 	;;; doing str
 	add 	reg, src
-	lea	warm,r0
-	add	r0,src
-	mov	dest, 0(src)
+	;; 	lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	dest, 0(src)
 	;; 	add	$1, wpc
+	and	$0xffffff,src
+	mov	warm(src),wregs(dest)
 	jmp	loop
 
 wstu:	mov	wregs(dest), dest
@@ -186,26 +196,32 @@ wstu:	mov	wregs(dest), dest
 	cmp	$0, reg
 	jl	wstu4
 	add	src, reg
-	mov	stubase(temp), rip
+	mov	reg,wregs(temp)
+	;; 	mov	stubase(temp), rip
 
 wstu2:				;this is bad but it might work
-	cmp	$0,exp
-	jl	wstu5
-	lea	warm,r0
-	add	r0,src
-	mov	dest, 0(src)
+	;; 	cmp	$0,exp
+	;; 	jl	wstu5
+	;; 	lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	dest, 0(src)
 	;; 	add	$1, wpc
+	and	$0xffffff,src
+	mov	dest,wregs(src)
 	jmp	loop
 	
 ;;; if negative
 wstu4: 	add	src,reg
-	mov	stubase(temp),rip
+	mov	reg,wregs(temp)
+	;; mov	stubase(temp),rip
 
 wstu5:	add	exp,src
-	lea	warm,r0
-	add	r0,src
-	mov	dest,0(src)
+	;; 	lea	warm,r0
+	;; 	add	r0,src
+	;; 	mov	dest,0(src)
 	;; 	add	$1,wpc
+	and	$0xffffff,src
+	mov	dest,wregs(src)
 	jmp	loop
 	
 wadr:	add	reg,src
@@ -289,19 +305,14 @@ fma2:
 	
 halt:	trap	$SysHalt
 
-wadd:	add	value, src
-	mov	src,wregs(dest)
+wadd:	lea	0(value,src),wregs(dest)
 	jmp	loop
 
-wadc:	add	value, src
-	mov 	wccr, temp
-	and	$0b10, temp
-	cmp	$0, temp
-	je	wadcjmp
-	add	$1, src
-	mov	src,wregs(dest)
+wadc:	test	$0b10,wccr
+ 	je	wadcjmp
+	lea	1(value,src),wregs(dest)
 	jmp	loop
-wadcjmp:mov	src,wregs(dest)
+wadcjmp:lea	0(value,src),wregs(dest)
 	jmp	loop
 wsub:	sub	value, src
 	mov	src,wregs(dest)
@@ -319,14 +330,15 @@ worr:	or	value, src
 wand:	and	value, src
 	mov	src,wregs(dest)
 	jmp	loop
-wtst:	and	value, src
+wtst:	test	value, src
 	jmp	loop
 wmul:	mul	value, src
 	mov	src,wregs(dest)
 	jmp	loop
 wmla:	mul	reg2, reg3
-	add	reg3, reg
-	mov	reg,wregs(dest)
+	lea	0(reg3,reg),wregs(dest)
+	;; 	add	reg3, reg
+	;; 	mov	reg,wregs(dest)
 	jmp	loop
 wdiv:	div	value, src
 	mov	src,wregs(dest)
