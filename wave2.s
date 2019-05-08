@@ -65,12 +65,8 @@ d1:	mov	ir, src
 	mov	getsrc(src), rip
 	
 loopd:	
-	;; Checks Shift/Bit14
-	mov	ir, temp
-	shr	$14,temp
-	and	$1,temp
-	mov	temp, r0
-	cmp	$0,temp
+	;; Checks Shift/Bit14 mov	ir, temp shr	$14,temp and	$1,temp mov	temp, r0	cmp	$0,temp
+	test	ir, $0b100000000000000
 	je	bit14
 	jne	shifts
 	

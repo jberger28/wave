@@ -29,7 +29,6 @@ cbits:	mov	ir,temp
 	and	$0b111,temp
 	mov	cjmp(temp),rip
 
-wbal:   jmp	dop
 wbnv:	add	$1,wpc
 	jmp	loop
 wbeq:	mov	wccr,ccr
@@ -88,88 +87,94 @@ d0:	mov	r2, dest
 d1:	mov	ir, src
 	sar	$15, src
 	and	$0b1111, src
-	mov	getsrc(src), rip
+	mov	wregs(src), src
+
+
+	;; Checks Shift/Bit14
+	mov	ir, temp
+	shr	$12, temp
+	and	$0b111, temp
+	mov	shjmp(temp), rip
+
 	
 d2:
 	mov	r2, dest
 	sar	$19, dest
 	and	$0b1111, dest
-	jmp	loopd
 	
-d3:	mov	ir, reg
+	;; Checks Shift/Bit14
+	mov	ir, temp
+	shr	$12, temp
+	and	$0b111, temp
+	mov	shjmp(temp), rip
+
+	
+d3:	test	$0b100000000000000, ir
+	jne	w2d3
+
+	mov	ir, reg
 	and	$0b11111111111111, reg
 	shl	$18,reg
 	sar	$18,reg
+	
+	mov	ir, src
+	sar	$15, src
+	and	$0b1111, src
+	mov	src, temp
+	mov	wregs(src), src
+
 	;; next line saves value of displacement
 	mov	reg,exp
-	mov	ir, temp
-	sar	$14, temp
-	and	$0b1, temp
-	cmp	$0, temp
-	je	w2d3
 	
-	mov	ir, shop
+w3d3:	mov 	ir, dest
+	sar	$19, dest
+	and	$0b1111, dest
+	;; and 	$0b111, opcode
+	mov	opjmp(opcode), rip
+
+w2d3:	mov	ir, shop
 	sar	$10, shop
 	and	$0b11, shop
 
 	mov 	ir, reg
 	and	$0b1111, reg
-	mov	getd3reg(reg), rip
-	
+	mov	wregs(reg), reg
+
 wd3:	mov	ir, value
 	and	$0b111111, value
 	mov	shopd3jmp(shop), rip
-
-w2d3:	mov	ir, src
-	sar	$15, src
-	and	$0b1111, src
-	mov	src, temp
-	mov	getd3src(src), rip	
-
-w3d3:	mov 	ir, dest
-	sar	$19, dest
-	and	$0b1111, dest
-	and 	$0b111, opcode
-	mov	opload(opcode), rip
 	
-wldr:	add	$1,wpc
-	add	reg, src
+wldr:	add	reg, src
 	lea	warm,r0
 	add	r0,src
 	mov	0(src), src
-	mov	regjmp(dest), rip
-
-wldu:	add	$1,wpc
-	cmp	$0, reg
+	mov	src, wregs(dest)
+	jmp	loop
+	
+wldu:	cmp	$0, reg
 	jl	wldu3
 	add	src, reg
-	mov	ldubase(temp), rip
+	mov	reg, wregs(temp)
 
 ;;; if positive
-wldu2:  jl	wldu4
-	lea	warm,r0
+wldu2:  lea	warm,r0
 	add	r0,src
 	mov	0(src), src
-	mov	regjmp(dest), rip
+	mov	src, wregs(dest)
+	jmp	loop
+	
 ;;; if negative
 wldu3:	add	src, reg
-	mov	ldubase(temp),rip
+	mov	reg, wregs(temp)
+	
 wldu4:	add 	reg,src
 	lea	warm,r0
 	add	r0,src
 	mov	0(src), src
 	mov	regjmp(dest), rip
 	
-wstr:	add	$1,wpc
-	mov	getd3dest(dest), rip
-	
-wstu:	add	$1,wpc
-	mov	getd3dest(dest), rip
-
-w4d3:	cmp	$3, opcode
-	je	wstu3
-
-;;; doing str
+wstr:	mov	wregs(dest), dest
+	;;; doing str
 	add 	reg, src
 	lea	warm,r0
 	add	r0,src
@@ -177,8 +182,9 @@ w4d3:	cmp	$3, opcode
 	;; 	add	$1, wpc
 	jmp	loop
 
-;;; doing stu
-wstu3:	cmp	$0, reg
+wstu:	mov	wregs(dest), dest
+	;;; doing stu
+	cmp	$0, reg
 	jl	wstu4
 	add	src, reg
 	mov	stubase(temp), rip
@@ -203,18 +209,9 @@ wstu5:	add	exp,src
 	;; 	add	$1,wpc
 	jmp	loop
 	
-wadr:	add	$1,wpc
-	add	reg,src
-	mov	regjmp(dest),rip
-loopd:	
-	;; Checks Shift/Bit14
-	mov	ir, temp
-	shr	$14,temp
-	and	$1,temp
-	mov	temp, r0
-	cmp	$0,temp
-	je	bit14
-	jne	shifts
+wadr:	add	reg,src
+	mov	src, wregs(dest)
+	jmp	loop
 	
 bit14:
 	mov	ir, exp
@@ -229,12 +226,6 @@ bit14:
 	add	$1,wpc
 	mov	opjmp(opcode), rip
 	
-shifts:
-	mov	ir, temp
-	sar	$12, temp
-	and	$0b11, temp
-	mov	shjmp(temp), rip
-
 shiftNum:
 	mov	ir, shop
 	sar	$10, shop
@@ -364,177 +355,152 @@ wmvnV:	xor	$0b11111111111111111111111111111111,value
 wswi:	mov	swijmp(value), rip
 
 wldm:	and	$0xffff, value
-
+	mov	wregs(dest), temp
+	
 wldm0:	test	value, $0b1
 	je	wldm1
-	add	$1, dest
-	mov	wr0, r0
+	mov	warm(temp), wr0
+	add	$1, temp
 wldm1:	test	value, $0b10
 	je	wldm2
-	add	$1, dest
-	mov	wr1, r1
+	mov	warm(temp), wr1
+	add	$1, temp
 wldm2:	test	value, $0b100
 	je	wldm3
-	add	$1, dest
-	mov	wr2, r2
+	mov	warm(temp), wr2
+	add	$1, temp
 wldm3:	test	value, $0b1000
 	je	wldm4
-	add	$1, dest
-	mov	wr3, r3
+	mov	warm(temp), wr3
+	add	$1, temp
 wldm4:	test	value, $0b10000
 	je	wldm5
-	add	$1, dest
-	mov	wr4, r4
+	mov	warm(temp), wr4
+	add	$1, temp
 wldm5:	test	value, $0b100000
 	je	wldm6
-	add	$1, dest
-	mov	wr5, r5
+	mov	warm(temp), wr5
+	add	$1, temp
 wldm6:	test	value, $0b1000000
 	je	wldm7
-	add	$1, dest
-	mov	wr6, r6
+	mov	warm(temp), wr6
+	add	$1, temp
 wldm7:	test	value, $0b10000000
 	je	wldm8
-	add	$1, dest
-	mov	wr7, r7
+	mov	warm(temp), wr7
+	add	$1, temp
 wldm8:	test	value, $0b100000000
 	je	wldm9
-	add	$1, dest
-	mov	wr8, r8
+	mov	warm(temp), wr8
+	add	$1, temp
 wldm9:	test	value, $0b1000000000
 	je	wldm10
-	add	$1, dest
-	mov	wr9, r9
+	mov	warm(temp), wr9
+	add	$1, temp
 wldm10:	test	value, $0b10000000000
 	je	wldm11
-	add	$1, dest
-	mov	wr10, r10
+	mov	warm(temp), wr10
+	add	$1, temp
 wldm11:	test	value, $0b100000000000
 	je	wldm12
-	add	$1, dest
-	mov	wr11, r11
+	mov	warm(temp), wr11
+	add	$1, temp
 wldm12:	test	value, $0b1000000000000
 	je	wldm13
-	add	$1, dest
-	mov	wr12, r12
+	mov	warm(temp), wr12
+	add	$1, temp
 wldm13:	test	value, $0b10000000000000
 	je	wldm14
-	add	$1, dest
-	mov	wr13, r13
+	mov	warm(temp), wr13
+	add	$1, temp
 wldm14:	test	value, $0b100000000000000
 	je	wldm15
-	add	$1, dest
-	mov	wr14, r14
+	mov	warm(temp), wr14
+	add	$1, temp
 wldm15:	test	value, $0b1000000000000000
 	je	wldmf
-	add	$1, dest
-	mov	wr15, r15
-
-wldmf:	add	$1, wpc
+	mov	warm(temp), wr15
+	mov	wr15, exp
+	shr	$28, exp
+	mov	exp, wccr
+	add	$1, temp
+	
+wldmf:	mov	temp, wregs(dest)
 	jmp	loop
 	
 wstm:	and	$0xffff, value
-
+	mov	wregs(dest), temp
+	
 wstm15:	test	value, $0b1000000000000000
 	je	wstm14
-	sub	$1, dest
-	mov	wr15, dest
+	sub	$1, temp
+	mov	wccr, exp
+	shl	$28, exp
+	or	exp, wr15
+	mov	wr15, warm(temp)
 wstm14:	test	value, $0b100000000000000
 	je	wstm13
-	sub	$1, dest
-	mov	wr14, dest
+	sub	$1, temp
+	mov	wr14, warm(temp)
 wstm13:	test	value, $0b10000000000000
 	je	wstm12
-	sub	$1, dest
-	mov	wr13, dest
+	sub	$1, temp
+	mov	wr13, warm(temp)
 wstm12:	test	value, $0b1000000000000
 	je	wstm11
-	sub	$1, dest
-	mov	wr12, dest
+	sub	$1, temp
+	mov	wr12, warm(temp)
 wstm11:	test	value, $0b100000000000
 	je	wstm10
-	sub	$1, dest
-	mov	wr11, dest
+	sub	$1, temp
+	mov	wr11, warm(temp)
 wstm10:	test	value, $0b10000000000
 	je	wstm9
-	sub	$1, dest
-	mov	wr10, dest
+	sub	$1, temp
+	mov	wr10, warm(temp)
 wstm9:	test	value, $0b1000000000
 	je	wstm8
-	sub	$1, dest
-	mov	wr9, dest
+	sub	$1, temp
+	mov	wr9, warm(temp)
 wstm8:	test	value, $0b100000000
 	je	wstm7
-	sub	$1, dest
-	mov	wr8, dest
+	sub	$1, temp
+	mov	wr8, warm(temp)
 wstm7:	test	value, $0b10000000
 	je	wstm6
-	sub	$1, dest
-	mov	wr7, dest
+	sub	$1, temp
+	mov	wr7, warm(temp)
 wstm6:	test	value, $0b1000000
 	je	wstm5
-	sub	$1, dest
-	mov	wr6, dest
+	sub	$1, temp
+	mov	wr6, warm(temp)
 wstm5:	test	value, $0b100000
 	je	wstm4
-	sub	$1, dest
-	mov	wr5, dest
+	sub	$1, temp
+	mov	wr5, warm(temp)
 wstm4:	test	value, $0b10000
 	je	wstm3
-	sub	$1, dest
-	mov	wr4, dest
+	sub	$1, temp
+	mov	wr4, warm(temp)
 wstm3:	test	value, $0b1000
 	je	wstm2
-	sub	$1, dest
-	mov	wr3, dest
+	sub	$1, temp
+	mov	wr3, warm(temp)
 wstm2:	test	value, $0b100
 	je	wstm1
-	sub	$1, dest
-	mov	wr2, dest
+	sub	$1, temp
+	mov	wr2, warm(temp)
 wstm1:	test	value, $0b10
 	je	wstm0
-	sub	$1, dest
-	mov	wr1, dest
+	sub	$1, temp
+	mov	wr1, warm(temp)
 wstm0:	test	value, $0b1
 	je	wstmf
-	sub	$1, dest
-	mov	wr0, dest
+	sub	$1, temp
+	mov	wr0, warm(temp)
 
-wstmf:	add	$1, wpc
+wstmf:	mov	temp, wregs(dest)
 	jmp	loop
-	
-gs0:	mov	wr0, src
-	jmp	loopd
-gs1:	mov	wr1, src
-	jmp	loopd
-gs2:	mov	wr2, src
-	jmp	loopd
-gs3:	mov	wr3, src
-	jmp	loopd
-gs4:	mov	wr4, src
-	jmp	loopd
-gs5:	mov	wr5, src
-	jmp	loopd
-gs6:	mov	wr6, src
-	jmp	loopd
-gs7:	mov	wr7, src
-	jmp	loopd
-gs8:	mov	wr8, src
-	jmp	loopd
-gs9:	mov	wr9, src
-	jmp	loopd
-gs10:	mov	wr10, src
-	jmp	loopd
-gs11:	mov	wr11, src
-	jmp	loopd
-gs12:	mov	wr12, src
-	jmp	loopd
-gs13:	mov	wr13, src
-	jmp	loopd
-gs14:	mov	wr14, src
-	jmp	loopd
-gs15:	mov	wr15, src
-	jmp	loopd
 
 ;;; r2 for shift count
 gnrr0:	mov	wr0, reg2
@@ -838,39 +804,6 @@ wgd14:	mov	wr14, src
 wgd15:	mov	wr15, src
 	jmp	w3d3
 
-wgdest0:	mov	wr0, dest
-	jmp	w4d3
-wgdest1:	mov	wr1, dest
-	jmp	w4d3
-wgdest2:	mov	wr2, dest
-	jmp	w4d3
-wgdest3:	mov	wr3, dest
-	jmp	w4d3
-wgdest4:	mov	wr4, dest
-	jmp	w4d3
-wgdest5:	mov	wr5, dest
-	jmp	w4d3
-wgdest6:	mov	wr6, dest
-	jmp	w4d3
-wgdest7:	mov	wr7, dest
-	jmp	w4d3
-wgdest8:	mov	wr8, dest
-	jmp	w4d3
-wgdest9:	mov	wr9, dest
-	jmp	w4d3
-wgdest10:	mov	wr10, dest
-	jmp	w4d3
-wgdest11:	mov	wr11, dest
-	jmp	w4d3
-wgdest12:	mov	wr12, dest
-	jmp	w4d3
-wgdest13:	mov	wr13, dest
-	jmp	w4d3
-wgdest14:	mov	wr14, dest
-	jmp	w4d3
-wgdest15:	mov	wr15, dest
-	jmp	w4d3
-
 b0:	mov	reg, wr0
 	jmp	wldu2
 b1:	mov	reg, wr1
@@ -966,47 +899,44 @@ sRror:	mov	$32,shop
 	jmp	shiftNum3
 
 sd3lsl:	shl	value, reg
-	jmp	w2d3
+	add	$1, wpc
+	mov	opjmp(opcode), rip
 sd3lsr:	shr	value, reg
-	jmp	w2d3
+	add	$1, wpc 
+	mov	opjmp(opcode), rip
 sd3asr:	sar	value, reg
-	jmp	w2d3
+	add	$1, wpc
+	mov	opjmp(opcode), rip
 sd3ror:	mov	$32,shop
 	sub	value,shop
 	mov	reg,temp
 	shl	shop,temp
 	shr	value,reg
 	xor	temp,reg
-	jmp	w2d3
+	add	$1, wpc
+	mov	opjmp(opcode), rip
 
 gchar:	trap	$SysGetChar
 	mov	r0, wr0
-	;; 	add	$1, wpc
 	jmp	loop
 gnum:	trap	$SysGetNum
 	mov	r0, wr0
-	;; 	add	$1, wpc
 	jmp	loop
 pchar:	mov	wr0, r0
 	trap	$SysPutChar
-	;; 	add	$1, wpc
 	jmp	loop
 pnum:	mov	wr0, r0
 	trap	$SysPutNum
-	;; 	add	$1, wpc
 	jmp	loop
 ent:	trap	$SysEntropy
 	mov	r0, wr0
-	;; 	add	$1, wpc
 	jmp	loop
 over:	mov	wr0, r0
 	trap	$SysOverlay
-	;; 	add	$1, wpc
 	jmp	loop
 pla:	mov	wr0, r0
 	trap	$SysPLA
 	mov	r0, wr0
-	;; 	add	$1, wpc
 	jmp	loop
 
 gchars:	trap	$SysGetChar
@@ -1437,19 +1367,17 @@ opdecode:
 	.data	d0,d0,d0,d1,d0,d0,d0,d1
 	.data	d0,d0,d0,d2,d2,bit14,halt, halt
 	.data	d3s, d3s, d3s, d3s, d3s, halt, halt, halt
-	
-shjmp:	.data	shiftNum, shiftReg, fma
+
+shjmp:	.data	bit14, bit14, bit14, bit14, shiftNum, shiftReg, fma
+
 opjmp:	.data	wadd,wadc,wsub,wcmp,weor,worr,wand,wtst
 	.data	wmul,wmla,wdiv,wmov,wmvn,wswi,wldm,wstm
-	.data	halt,halt,halt,halt,halt,halt,halt,halt
+	.data	wldr,wstr,wldu,wstu,wadr,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	wadds,wadcs,wsubs,wcmps,weors,worrs,wands,wtsts
 	.data	wmuls,wmlas,wdivs,wmovs,wmvns,wswis,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt
-
-getsrc: .data	gs0, gs1, gs2, gs3, gs4, gs5, gs6, gs7
-	.data	gs8, gs9, gs10, gs11, gs12, gs13, gs14, gs15
 
 ;;; Get reg2 for reg
 getR2: 	.data	grerr0, grerr1, grerr2, grerr3, grerr4, grerr5, grerr6, grerr7
@@ -1480,7 +1408,6 @@ shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 swijmps:	.data	halt, gchars, gnums, pchars, pnums, ents, overs, plas
 
-opload:		.data 	wldr, wstr, wldu, wstu, wadr
 getd3reg: .data	gd0, gd1, gd2, gd3, gd4, gd5, gd6, gd7
 	.data	gd8, gd9, gd10, gd11, gd12, gd13, gd14, gd15
 ldubase: .data	b0, b1, b2, b3, b4, b5, b6, b7
@@ -1490,15 +1417,10 @@ stubase: .data	s0, s1, s2, s3, s4, s5, s6, s7
 shopd3jmp:	.data	sd3lsl, sd3lsr, sd3asr, sd3ror
 getd3src: .data	wgd0, wgd1, wgd2, wgd3, wgd4, wgd5, wgd6, wgd7
 	.data	wgd8, wgd9, wgd10, wgd11, wgd12, wgd13, wgd14, wgd15
-getd3dest: .data	wgdest0, wgdest1, wgdest2, wgdest3, wgdest4, wgdest5,
-	.data	wgdest6, wgdest7, wgdest8, wgdest9, wgdest10, wgdest11,
-	.data	wgdest12, wgdest13, wgdest14, wgdest15
-cjmp:		.data	wbal, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
+cjmp:		.data	dop, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 
 ;;; ---------------------------------- S ------------------------------------
-
-oploads:
-	.data 	wldrs, wstrs, wldus, wstus, wadrs
+oploads:	.data 	wldrs, wstrs, wldus, wstus, wadrs
 getd3regs:
 	.data	gd0s, gd1s, gd2s, gd3s, gd4s, gd5s, gd6s, gd7s
 	.data	gd8s, gd9s, gd10s, gd11s, gd12s, gd13s, gd14s, gd15s
