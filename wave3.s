@@ -519,6 +519,8 @@ wdivs:	div	value, src
 	mov	ccr,wccr
 	mov	src,wregs(dest)
 	jmp	loop
+
+wmvn:	xor	$-1,value	
 wmov:	mov	value,wregs(dest)
 	jmp	loop
 wmovs:	add	$0,value
@@ -526,9 +528,6 @@ wmovs:	add	$0,value
 	mov	value,wregs(dest)
 	jmp	loop
 		
-wmvn:	xor	$-1,value
-	mov	value,wregs(dest)
-	jmp	loop
 wmvns:	xor	$-1,value
 	mov	ccr,wccr
 	mov	value,wregs(dest)
