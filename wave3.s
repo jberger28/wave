@@ -346,7 +346,9 @@ bit14:
 	and	$0b11111, exp
 
 	mov	ir, value
-	and	$0b11111111, value
+	and	$0b111111111, value
+	;; 	shl	$23,value
+	;; 	sar	$23,value
 
 	shl	exp, value
 	;; INCREMENT PROGRAM COUNTER
@@ -433,6 +435,7 @@ fmas:	mov	ir, reg
 	mov	ir, reg3
 	and	$0b1111, reg3
 	mov	wregs(reg3),reg3
+	add	$1,wpc
 
 wmlas:	mul	reg2, reg3
 	add	reg3,reg
