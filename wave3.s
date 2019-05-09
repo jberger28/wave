@@ -110,7 +110,7 @@ d2:
 	
 d3:	test	$0b100000000000000, ir
 	jne	w2d3
-
+;;; signed offset from base
 	mov	ir, reg
 	and	$0b11111111111111, reg
 	shl	$18,reg
@@ -121,6 +121,7 @@ d3:	test	$0b100000000000000, ir
 	and	$0b1111, src
 	mov	src, temp
 	mov	wregs(src), src
+	and	$0xffffff, src
 
 	;; next line saves value of displacement
 	mov	reg,exp
@@ -131,12 +132,26 @@ w3d3:	mov 	ir, dest
 	;; and 	$0b111, opcode
  	add	$1,wpc
 	mov	opjmp(opcode), rip
+	
+;;; shifted
+w2d3:
+	mov 	ir, dest
+	sar	$19, dest
+	and	$0b1111, dest	
+	
+	mov	ir, src
+	sar	$15, src
+	and	$0b1111, src
+	mov	src, temp
+	mov	wregs(src), src
+	and	$0xffffff, src
 
-w2d3:	mov	ir, shop
+	mov	ir, shop
 	sar	$10, shop
 	and	$0b11, shop
 
 	mov 	ir, reg
+	sar	$6, reg
 	and	$0b1111, reg
 	mov	wregs(reg), reg
 
@@ -191,11 +206,13 @@ wstr:				;mov	wregs(dest), dest
 	mov	wregs(dest),warm(src)
 	jmp	loop
 
-wstu:				;mov	wregs(dest), dest
+wstu:	
+
 	;;; doing stu
 	cmp	$0, reg
 	jl	wstu4
 	add	src, reg
+	and	$0xffffff,reg
 	mov	reg,wregs(temp)
 	;; 	mov	stubase(temp), rip
 
@@ -212,6 +229,7 @@ wstu2:				;this is bad but it might work
 	
 ;;; if negative
 wstu4: 	add	src,reg
+	and	$0xffffff,reg
 	mov	reg,wregs(temp)
 	;; mov	stubase(temp),rip
 
@@ -238,6 +256,7 @@ wldrs:	add	reg, src
 wldus:	cmp	$0, reg
 	jl	wldu3s
 	add	src, reg
+	and	$0xffffff,reg
 	mov	reg, wregs(temp)
 
 ;;; if positive
@@ -253,6 +272,7 @@ wldu2s:  			;lea	warm,r0
 	
 ;;; if negative
 wldu3s:	add	src, reg
+	and	$0xffffff,reg
 	mov	reg, wregs(temp)
 	
 wldu4s:	add 	reg,src
@@ -360,7 +380,8 @@ shiftReg:
 
 	mov 	ir, reg
 	and	$0b1111, reg
-	mov	getreg(reg), rip
+	mov	wregs(reg),reg
+	;; 	mov	getreg(reg), rip
 	
 getReg2:mov	ir, value
 	sar	$6, value
@@ -374,26 +395,52 @@ shiftReg3:
 		mov	opjmp(opcode), rip
 	
 fma:
+	mov	ir, dest
+	shr	$19,dest
+	and	$0xf,dest
+	
 	mov	ir, reg
 	sar	$15, reg
 	and	$0b1111, reg
-	mov	getfma1(reg), rip
+	mov	wregs(reg),reg
 
-fma1:	mov	ir, reg2
+	mov	ir, reg2
 	sar	$6, reg2
 	and	$0b1111, reg2
-	mov	getfma2(reg2), rip
+	mov	wregs(reg2),reg2
 	
-getReg3:mov	ir, reg3
+	mov	ir, reg3
 	and	$0b1111, reg3
-	mov	getfma3(reg3), rip
+	mov	wregs(reg3),reg3
 	
-fma2:
 	;; INCREMENT PROGRAM COUNTER (and maybe don't jump again)
 	;; should already know we are in fmla
 	add 	$1,wpc
-	mov	opjmp(opcode), rip
+	;; 	mov	opjmp(opcode), rip 
+wmla:	mul	reg2, reg3
+	lea	0(reg3,reg),wregs(dest)
+	jmp	loop
+fmas:	mov	ir, reg
+	sar	$15, reg
+	and	$0b1111, reg
+	mov	wregs(reg),reg
 
+	mov	ir, reg2
+	sar	$6, reg2
+	and	$0b1111, reg2
+	mov	wregs(reg2),reg2
+	
+	mov	ir, reg3
+	and	$0b1111, reg3
+	mov	wregs(reg3),reg3
+
+wmlas:	mul	reg2, reg3
+	add	reg3,reg
+	mov	ccr,wccr
+	mov	reg,wregs(dest)
+	jmp	loop
+
+	
 	
 halt:	trap	$SysHalt
 
@@ -462,14 +509,6 @@ wmuls:	mul	value, src
 	mov	ccr,wccr
 	mov	src,wregs(dest)
 	jmp	loop
-wmla:	mul	reg2, reg3
-	lea	0(reg3,reg),wregs(dest)
-	jmp	loop
-wmlas:	mul	reg2, reg3
-	add	reg3,reg
-	mov	ccr,wccr
-	mov	reg,wregs(dest)
-	jmp	loop
 wdiv:	div	value, src
 	mov	src,wregs(dest)
 	jmp	loop
@@ -497,6 +536,7 @@ wswis:	mov	swijmps(value), rip
 
 wldm:	and	$0xffff, value
 	mov	wregs(dest), temp
+	and	$0xffffff,temp
 	
 wldm0:	test	value, $0b1
 	je	wldm1
@@ -571,6 +611,7 @@ wldmf:	mov	temp, wregs(dest)
 	
 wstm:	and	$0xffff, value
 	mov	wregs(dest), temp
+	and	$0xffffff,temp
 	
 wstm15:	test	value, $0b1000000000000000
 	je	wstm14
@@ -643,373 +684,7 @@ wstm0:	test	value, $0b1
 wstmf:	mov	temp, wregs(dest)
 	jmp	loop
 
-;;; r2 for shift count
-gnrr0:	mov	wr0, reg2
-	jmp	shiftNum2
-gnrr1:	mov	wr1, reg2
-	jmp	shiftNum2
-gnrr2:	mov	wr2, reg2
-	jmp	shiftNum2
-gnrr3:	mov	wr3, reg2
-	jmp	shiftNum2
-gnrr4:	mov	wr4, reg2
-	jmp	shiftNum2
-gnrr5:	mov	wr5, reg2
-	jmp	shiftNum2
-gnrr6:	mov	wr6, reg2
-	jmp	shiftNum2
-gnrr7:	mov	wr7, reg2
-	jmp	shiftNum2
-gnrr8:	mov	wr8, reg2
-	jmp	shiftNum2
-gnrr9:	mov	wr9, reg2
-	jmp	shiftNum2
-gnrr10:	mov	wr10, reg2
-	jmp	shiftNum2
-gnrr11:	mov	wr11, reg2
-	jmp	shiftNum2
-gnrr12:	mov	wr12, reg2
-	jmp	shiftNum2
-gnrr13:	mov	wr13, reg2
-	jmp	shiftNum2
-gnrr14:	mov	wr14, reg2
-	jmp	shiftNum2
-gnrr15:	mov	wr15, reg2
-	jmp	shiftNum2
-	
-;;; sh reg
-gr0:	mov	wr0, reg
-	jmp	getReg2
-gr1:	mov	wr1, reg
-	jmp	getReg2
-gr2:	mov	wr2, reg
-	jmp	getReg2
-gr3:	mov	wr3, reg
-	jmp	getReg2
-gr4:	mov	wr4, reg
-	jmp	getReg2
-gr5:	mov	wr5, reg
-	jmp	getReg2
-gr6:	mov	wr6, reg
-	jmp	getReg2
-gr7:	mov	wr7, reg
-	jmp	getReg2
-gr8:	mov	wr8, reg
-	jmp	getReg2
-gr9:	mov	wr9, reg
-	jmp	getReg2
-gr10:	mov	wr10, reg
-	jmp	getReg2
-gr11:	mov	wr11, reg
-	jmp	getReg2
-gr12:	mov	wr12, reg
-	jmp	getReg2
-gr13:	mov	wr13, reg
-	jmp	getReg2
-gr14:	mov	wr14, reg
-	jmp	getReg2
-gr15:	mov	wr15, reg
-	jmp	getReg2
 
-grerr0:	mov	wr0, reg2
-	jmp	shiftReg2
-grerr1:	mov	wr1, reg2
-	jmp	shiftReg2
-grerr2:	mov	wr2, reg2
-	jmp	shiftReg2
-grerr3:	mov	wr3, reg2
-	jmp	shiftReg2
-grerr4:	mov	wr4, reg2
-	jmp	shiftReg2
-grerr5:	mov	wr5, reg2
-	jmp	shiftReg2
-grerr6:	mov	wr6, reg2
-	jmp	shiftReg2
-grerr7:	mov	wr7, reg2
-	jmp	shiftReg2
-grerr8:	mov	wr8, reg2
-	jmp	shiftReg2
-grerr9:	mov	wr9, reg2
-	jmp	shiftReg2
-grerr10:mov	wr10, reg2
-	jmp	shiftReg2
-grerr11:mov	wr11, reg2
-	jmp	shiftReg2
-grerr12:mov	wr12, reg2
-	jmp	shiftReg2
-grerr13:mov	wr13, reg2
-	jmp	shiftReg2
-grerr14:mov	wr14, reg2
-	jmp	shiftReg2
-grerr15:mov	wr15, reg2
-	jmp	shiftReg2
-
-;;; src reg 2 for reg 3
-gf0:	mov	wr0, reg
-	jmp	fma1
-gf1:	mov	wr1, reg
-	jmp	fma1
-gf2:	mov	wr2, reg
-	jmp	fma1
-gf3:	mov	wr3, reg
-	jmp	fma1
-gf4:	mov	wr4, reg
-	jmp	fma1
-gf5:	mov	wr5, reg
-	jmp	fma1
-gf6:	mov	wr6, reg
-	jmp	fma1
-gf7:	mov	wr7, reg
-	jmp	fma1
-gf8:	mov	wr8, reg
-	jmp	fma1
-gf9:	mov	wr9, reg
-	jmp	fma1
-gf10:	mov	wr10, reg
-	jmp	fma1
-gf11:	mov	wr11, reg
-	jmp	fma1
-gf12:	mov	wr12, reg
-	jmp	fma1
-gf13:	mov	wr13, reg
-	jmp	fma1
-gf14:	mov	wr14, reg
-	jmp	fma1
-gf15:	mov	wr15, reg
-	jmp	fma1
-
-	
-grr0:	mov 	wr0, reg2
-	jmp	getReg3
-grr1:	mov 	wr1, reg2
-	jmp	getReg3
-grr2:	mov 	wr2, reg2
-	jmp	getReg3
-grr3:	mov 	wr3, reg2
-	jmp	getReg3
-grr4:	mov 	wr4, reg2
-	jmp	getReg3
-grr5:	mov 	wr5, reg2
-	jmp	getReg3
-grr6:	mov 	wr6, reg2
-	jmp	getReg3
-grr7:	mov 	wr7, reg2
-	jmp	getReg3
-grr8:	mov 	wr8, reg2
-	jmp	getReg3
-grr9:	mov 	wr9, reg2
-	jmp	getReg3
-grr10:	mov 	wr10, reg2
-	jmp	getReg3
-grr11:	mov 	wr11, reg2
-	jmp	getReg3
-grr12:	mov 	wr12, reg2
-	jmp	getReg3
-grr13:	mov 	wr13, reg2
-	jmp	getReg3
-grr14:	mov 	wr14, reg2
-	jmp	getReg3
-grr15:	mov 	wr15, reg2
-	jmp	getReg3
-
-grrr0:	mov	wr0, reg3
-	jmp	fma2
-grrr1:	mov	wr1, reg3
-	jmp	fma2
-grrr2:	mov	wr2, reg3
-	jmp	fma2
-grrr3:	mov	wr3, reg3
-	jmp	fma2
-grrr4:	mov	wr4, reg3
-	jmp	fma2
-grrr5:	mov	wr5, reg3
-	jmp	fma2
-grrr6:	mov	wr6, reg3
-	jmp	fma2
-grrr7:	mov	wr7, reg3
-	jmp	fma2
-grrr8:	mov	wr8, reg3
-	jmp	fma2
-grrr9:	mov	wr9, reg3
-	jmp	fma2
-grrr10:	mov	wr10, reg3
-	jmp	fma2
-grrr11:	mov	wr11, reg3
-	jmp	fma2
-grrr12:	mov	wr12, reg3
-	jmp	fma2
-grrr13:	mov	wr13, reg3
-	jmp	fma2
-grrr14:	mov	wr14, reg3
-	jmp	fma2
-grrr15:	mov	wr15, reg3
-	jmp	fma2
-	
-rr0:	mov	src, wr0
-	jmp	loop
-rr1:	mov	src, wr1
-	jmp	loop
-rr2:	mov	src, wr2
-	jmp	loop
-rr3:	mov	src, wr3
-	jmp	loop
-rr4:	mov	src, wr4
-	jmp	loop
-rr5:	mov	src, wr5
-	jmp	loop
-rr6:	mov	src, wr6
-	jmp	loop
-rr7:	mov	src, wr7
-	jmp	loop
-rr8:	mov	src, wr8
-	jmp	loop
-rr9:	mov	src, wr9
-	jmp	loop
-rr10:	mov	src, wr10
-	jmp	loop
-rr11:	mov	src, wr11
-	jmp	loop
-rr12:	mov	src, wr12
-	jmp	loop
-rr13:	mov	src, wr13
-	jmp	loop
-rr14:	mov	src, wr14
-	jmp	loop
-rr15:	mov	src, wr15
-	jmp	loop
-
-;;; load/multiple
-gd0:	mov	wr0, reg
-	jmp	wd3
-gd1:	mov	wr1, reg
-	jmp	wd3
-gd2:	mov	wr2, reg
-	jmp	wd3
-gd3:	mov	wr3, reg
-	jmp	wd3
-gd4:	mov	wr4, reg
-	jmp	wd3
-gd5:	mov	wr5, reg
-	jmp	wd3
-gd6:	mov	wr6, reg
-	jmp	wd3
-gd7:	mov	wr7, reg
-	jmp	wd3
-gd8:	mov	wr8, reg
-	jmp	wd3
-gd9:	mov	wr9, reg
-	jmp	wd3
-gd10:	mov	wr10, reg
-	jmp	wd3
-gd11:	mov	wr11, reg
-	jmp	wd3
-gd12:	mov	wr12, reg
-	jmp	wd3
-gd13:	mov	wr13, reg
-	jmp	wd3
-gd14:	mov	wr14, reg
-	jmp	wd3
-gd15:	mov	wr15, reg
-	jmp	wd3
-
-wgd0:	mov	wr0, src
-	jmp	w3d3
-wgd1:	mov	wr1, src
-	jmp	w3d3
-wgd2:	mov	wr2, src
-	jmp	w3d3
-wgd3:	mov	wr3, src
-	jmp	w3d3
-wgd4:	mov	wr4, src
-	jmp	w3d3
-wgd5:	mov	wr5, src
-	jmp	w3d3
-wgd6:	mov	wr6, src
-	jmp	w3d3
-wgd7:	mov	wr7, src
-	jmp	w3d3
-wgd8:	mov	wr8, src
-	jmp	w3d3
-wgd9:	mov	wr9, src
-	jmp	w3d3
-wgd10:	mov	wr10, src
-	jmp	w3d3
-wgd11:	mov	wr11, src
-	jmp	w3d3
-wgd12:	mov	wr12, src
-	jmp	w3d3
-wgd13:	mov	wr13, src
-	jmp	w3d3
-wgd14:	mov	wr14, src
-	jmp	w3d3
-wgd15:	mov	wr15, src
-	jmp	w3d3
-
-b0:	mov	reg, wr0
-	jmp	wldu2
-b1:	mov	reg, wr1
-	jmp	wldu2
-b2:	mov	reg, wr2
-	jmp	wldu2
-b3:	mov	reg, wr3
-	jmp	wldu2
-b4:	mov	reg, wr4
-	jmp	wldu2
-b5:	mov	reg, wr5
-	jmp	wldu2
-b6:	mov	reg, wr6
-	jmp	wldu2
-b7:	mov	reg, wr7
-	jmp	wldu2
-b8:	mov	reg, wr8
-	jmp	wldu2
-b9:	mov	reg, wr9
-	jmp	wldu2
-b10:	mov	reg, wr10
-	jmp	wldu2
-b11:	mov	reg, wr11
-	jmp	wldu2
-b12:	mov	reg, wr12
-	jmp	wldu2
-b13:	mov	reg, wr13
-	jmp	wldu2
-b14:	mov	reg, wr14
-	jmp	wldu2
-b15:	mov	reg, wr15
-	jmp	wldu2
-	
-s0:	mov	reg, wr0
-	jmp	wstu2
-s1:	mov	reg, wr1
-	jmp	wstu2
-s2:	mov	reg, wr2
-	jmp	wstu2
-s3:	mov	reg, wr3
-	jmp	wstu2
-s4:	mov	reg, wr4
-	jmp	wstu2
-s5:	mov	reg, wr5
-	jmp	wstu2
-s6:	mov	reg, wr6
-	jmp	wstu2
-s7:	mov	reg, wr7
-	jmp	wstu2
-s8:	mov	reg, wr8
-	jmp	wstu2
-s9:	mov	reg, wr9
-	jmp	wstu2
-s10:	mov	reg, wr10
-	jmp	wstu2
-s11:	mov	reg, wr11
-	jmp	wstu2
-s12:	mov	reg, wr12
-	jmp	wstu2
-s13:	mov	reg, wr13
-	jmp	wstu2
-s14:	mov	reg, wr14
-	jmp	wstu2
-s15:	mov	reg, wr15
-	jmp	wstu2
 
 sVlsl:	shl	shiftCount, value
 	jmp	shiftNum3
@@ -1131,13 +806,13 @@ plas:	mov	wr0, r0
 ;;; d0 add, d1 compare, d2 mov, d3 swi
 opdecode:
 	.data 	d0,d0,d0,d1,d0,d0,d0,d1
-	.data	d0,d0,d0,d2,d2,bit14,d2,d2
+	.data	d0,fma,d0,d2,d2,bit14,d2,d2
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
 	.data	wbranch, wbranch, wbranchl, wbranchl,
 	.data	halt,halt,halt,halt
 	;; part 2 of table
 	.data	d0,d0,d0,d1,d0,d0,d0,d1
-	.data	d0,d0,d0,d2,d2,bit14,halt, halt
+	.data	d0,fmas,d0,d2,d2,bit14,halt, halt
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
 
 shjmp:	.data	bit14, bit14, bit14, bit14, shiftNum, shiftReg, fma
@@ -1151,44 +826,15 @@ opjmp:	.data	wadd,wadc,wsub,wcmps,weor,worr,wand,wtsts
 	.data	wldrs,wstrs,wldus,wstus,wadr,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt
 
-;;; Get reg2 for reg
-getR2: 	.data	grerr0, grerr1, grerr2, grerr3, grerr4, grerr5, grerr6, grerr7
-		.data	grerr8, grerr9, grerr10, grerr11, grerr12, grerr13, grerr14, grerr15
-
-getreg: .data	gr0, gr1, gr2, gr3, gr4, gr5, gr6, gr7
-	.data	gr8, gr9, gr10, gr11, gr12, gr13, gr14, gr15
-
-;;; Get reg2 for shift count
-getreg2: 	.data	gnrr0, gnrr1, gnrr2, gnrr3, gnrr4, gnrr5, gnrr6, gnrr7
-		.data	gnrr8, gnrr9, gnrr10, gnrr11, gnrr12, gnrr13, gnrr14, gnrr15
-
-;;; Get reg2 for reg3
-getfma1: .data	gf0, gf1, gf2, gf3, gf4, gf5, gf6, gf7, gf8
-	.data	gf9, gf10, gf11, gf12, gf13, gf14, gf15
-	
-getfma2: .data	grr0, grr1, grr2, grr3, grr4, grr5, grr6, grr7
-	.data	grr8, grr9, grr10, grr11, grr12, grr13, grr14, grr15
-
-getfma3: .data	grrr0, grrr1, grrr2, grrr3, grrr4, grrr5, grrr6, grrr7
-	.data	grrr8, grrr9, grrr10, grrr11, grrr12, grrr13, grrr14, grrr15
-
-regjmp:	.data	rr0, rr1, rr2, rr3, rr4, rr5, rr6, rr7
-	.data	rr8, rr9, rr10, rr11, rr12, rr13, rr14, rr15
 
 shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
 shopRjmp:	.data	sRlsl, sRlsr, sRasr, sRror
 swijmp:		.data	halt, gchar, gnum, pchar, pnum, ent, over, pla
 swijmps:	.data	halt, gchars, gnums, pchars, pnums, ents, overs, plas
 
-getd3reg: .data	gd0, gd1, gd2, gd3, gd4, gd5, gd6, gd7
-	.data	gd8, gd9, gd10, gd11, gd12, gd13, gd14, gd15
-ldubase: .data	b0, b1, b2, b3, b4, b5, b6, b7
-	.data	b8, b9, b10, b11, b12, b13, b14, b15
-stubase: .data	s0, s1, s2, s3, s4, s5, s6, s7
-	.data	s8, s9, s10, s11, s12, s13, s14, s15
+
 shopd3jmp:	.data	sd3lsl, sd3lsr, sd3asr, sd3ror
-getd3src: .data	wgd0, wgd1, wgd2, wgd3, wgd4, wgd5, wgd6, wgd7
-	.data	wgd8, wgd9, wgd10, wgd11, wgd12, wgd13, wgd14, wgd15
+
 cjmp:		.data	dop, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 
 ;;; ---------------------------------- S ------------------------------------
