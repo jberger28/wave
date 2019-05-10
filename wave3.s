@@ -53,15 +53,10 @@ wbgt:	mov	wccr,ccr
 	add	$1,wpc
 	jmp	loop
 
-	
-wbranch:add	ir,wpc
-	jmp	loop
-	
-wbranchl:
-	mov	wpc,wlr
-	add	$1,wlr
-	add	ir,wpc
-	jmp	loop
+wbranchl:	mov	wpc,wlr
+		add 	$1,wlr
+wbranch:	add	ir,wpc
+		jmp	loop
 		
 dop:	mov	ir, opcode
 	shr	$23, opcode
@@ -69,11 +64,11 @@ dop:	mov	ir, opcode
 	mov	opdecode(opcode), rip
 
 d0:	mov	r2, dest
-	sar	$19, dest
+	shr	$19, dest
 	and	$0b1111, dest
 
 d1:	mov	ir, src
-	sar	$15, src
+	shr	$15, src
 	and	$0b1111, src
 	mov	wregs(src), src
 
@@ -84,7 +79,7 @@ d1:	mov	ir, src
 	mov	shjmp(temp), rip
 	
 d2:	mov	r2, dest
-	sar	$19, dest
+	shr	$19, dest
 	and	$0b1111, dest
 	
 	;; Checks Shift/Bit14
@@ -98,19 +93,19 @@ d3:	test	$0b100000000000000, ir
 	jne	w2d3
 ;;; signed offset from base
 	mov	ir, reg
-	and	$0b11111111111111, reg
+	and	$0x3fff,reg
 	shl	$18,reg
 	sar	$18,reg
 	
 	mov	ir, src
-	sar	$15, src
+	shr	$15, src
 	and	$0b1111, src
 	mov	src, temp
 	mov	wregs(src), src
 	and	$0xffffff, src
 
 w3d3:	mov 	ir, dest
-	sar	$19, dest
+	shr	$19, dest
 	and	$0b1111, dest
  	add	$1,wpc
 	mov	opjmp(opcode), rip
@@ -118,22 +113,22 @@ w3d3:	mov 	ir, dest
 ;;; shifted
 w2d3:
 	mov 	ir, dest
-	sar	$19, dest
+	shr	$19, dest
 	and	$0b1111, dest	
 	
 	mov	ir, src
-	sar	$15, src
+	shr	$15, src
 	and	$0b1111, src
 	mov	src, temp
 	mov	wregs(src), src
 	and	$0xffffff, src
 
 	mov	ir, shop
-	sar	$10, shop
+	shr	$10, shop
 	and	$0b11, shop
 
 	mov 	ir, reg
-	sar	$6, reg
+	shr	$6, reg
 	and	$0b1111, reg
 	mov	wregs(reg), reg
 
@@ -180,15 +175,8 @@ wstu:
 	add	src, reg
 	and	$0xffffff,reg
 	mov	reg,wregs(temp)
-	;; 	mov	stubase(temp), rip
 
 wstu2:				;this is bad but it might work
-	;; 	cmp	$0,exp
-	;; 	jl	wstu5
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest, 0(src)
-	;; 	add	$1, wpc
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
 	jmp	loop
@@ -197,11 +185,8 @@ wstu2:				;this is bad but it might work
 wstu4: 	add	src,reg
 	and	$0xffffff,reg
 	mov	reg,wregs(temp)
-	;; mov	stubase(temp),rip
 
 wstu5:
-	;; add	exp,src
-	;; 	and	$0xffffff,src
 	mov	wregs(dest),warm(reg)
 	jmp	loop
 
@@ -210,10 +195,6 @@ wldrs:	add	reg, src
 	mov	warm(src), wregs(dest)
 	add	$0,wregs(dest)
 	mov	ccr,wccr
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
-	;; 	mov	src, wregs(dest)
 	jmp	loop
 	
 wldus:	cmp	$0, reg
@@ -223,10 +204,7 @@ wldus:	cmp	$0, reg
 	mov	reg, wregs(temp)
 
 ;;; if positive
-wldu2s:  			;lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
-	;; 	mov	src, wregs(dest)
+wldu2s:  		
 	and	$0xffffff,src
 	mov	warm(src),wregs(dest)
 	add	$0,wregs(dest)
@@ -239,44 +217,29 @@ wldu3s:	add	src, reg
 	mov	reg, wregs(temp)
 	
 wldu4s:	add 	reg,src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
 	and	$0xffffff,src
-	;; 	mov	regjmp(dest), rip
 	mov	warm(src),wregs(dest)
 	add	$0,wregs(dest)
 	mov	ccr,wccr
 	jmp	loop
 	
-wstrs:				;mov	wregs(dest), dest
+wstrs:			
 	;;; doing str
 	add 	reg, src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest, 0(src)
-	;; 	add	$1, wpc
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
 	add	$0,wregs(dest)
 	mov 	ccr,wccr
 	jmp	loop
 
-wstus:				;mov	wregs(dest), dest
+wstus:	
 	;;; doing stu
 	cmp	$0, reg
 	jl	wstu4s
 	add	src, reg
 	mov	reg,wregs(temp)
-	;; 	mov	stubase(temp), rip
-
+	
 wstu2s:				;this is bad but it might work
-	;; 	cmp	$0,exp
-	;; 	jl	wstu5
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest, 0(src)
-	;; 	add	$1, wpc
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
 	add	$0,wregs(dest)
@@ -284,16 +247,12 @@ wstu2s:				;this is bad but it might work
 	jmp	loop
 	
 ;;; if negative
-wstu4s: 	add	src,reg
+wstu4s:
+	add	src,reg
 	mov	reg,wregs(temp)
-	;; mov	stubase(temp),rip
-
+	
 wstu5s:	add	exp,src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest,0(src)
-	;; 	add	$1,wpc
-	and	$0xffffff,src
+		and	$0xffffff,src
 	mov	wregs(dest),warm(src)
 	add	$0,wregs(dest)
 	mov	ccr,wccr
@@ -310,9 +269,7 @@ bit14:
 
 	mov	ir, value
 	and	$0b111111111, value
-	;; 	shl	$23,value
-	;; 	sar	$23,value
-
+	
 	shl	exp, value
 	;; INCREMENT PROGRAM COUNTER
 	add	$1,wpc
@@ -346,7 +303,6 @@ shiftReg:
 	mov 	ir, reg
 	and	$0b1111, reg
 	mov	wregs(reg),reg
-	;; 	mov	getreg(reg), rip
 	
 getReg2:mov	ir, value
 	sar	$6, value
@@ -378,10 +334,7 @@ fma:
 	and	$0b1111, reg3
 	mov	wregs(reg3),reg3
 	
-	;; INCREMENT PROGRAM COUNTER (and maybe don't jump again)
-	;; should already know we are in fmla
 	add 	$1,wpc
-	;; 	mov	opjmp(opcode), rip 
 wmla:	mul	reg2, reg3
 	lea	0(reg3,reg),wregs(dest)
 	jmp	loop
@@ -405,8 +358,6 @@ wmlas:	mul	reg2, reg3
 	mov	ccr,wccr
 	mov	reg,wregs(dest)
 	jmp	loop
-
-	
 	
 halt:	trap	$SysHalt
 
@@ -757,39 +708,28 @@ plas:	mov	wr0, r0
 	mov	ccr,wccr
 	jmp	loop
 
-;;; ---------------------------- S ---------------------------------------
-
-
-
-
-
-
-
-
-
-;;; ---------------------------- S COMPLETE ----------------------------------
 ;;; d0 add, d1 compare, d2 mov, d3 swi
 opdecode:
 	.data 	d0,d0,d0,d1,d0,d0,d0,d1
 	.data	d0,fma,d0,d2,d2,bit14,d2,d2
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
-	.data	wbranch, wbranch, wbranchl, wbranchl,
-	.data	halt,halt,halt,halt
+	.data	wbranch, wbranch, wbranchl, wbranchl, halt, halt, halt, halt
 	;; part 2 of table
 	.data	d0,d0,d0,d1,d0,d0,d0,d1
-	.data	d0,fmas,d0,d2,d2,bit14,halt, halt
+	.data	d0,fmas,d0,d2,d2,bit14,d2, d2
 	.data	d3, d3, d3, d3, d3, halt, halt, halt
+	.data	halt,halt,halt,halt,halt,halt,halt,halt
 
 shjmp:	.data	bit14, bit14, bit14, bit14, shiftNum, shiftReg, fma
 
 opjmp:	.data	wadd,wadc,wsub,wcmps,weor,worr,wand,wtsts
-	.data	wmul,wmla,wdiv,wmov,wmvn,wswi,wldm,wstm
+	.data	wmul,halt,wdiv,wmov,wmvn,wswi,wldm,wstm
 	.data	wldr,wstr,wldu,wstu,wadr,halt,halt,halt
 	.data	halt,halt,halt,halt,halt,halt,halt,halt
 	.data	wadds,wadcs,wsubs,wcmps,weors,worrs,wands,wtsts
-	.data	wmuls,wmlas,wdivs,wmovs,wmvns,wswis,halt,halt
+	.data	wmuls,halt,wdivs,wmovs,wmvns,wswis,halt,halt
 	.data	wldrs,wstrs,wldus,wstus,wadr,halt,halt,halt
-	.data	halt,halt,halt,halt,halt,halt,halt
+	.data	halt,halt,halt,halt,halt,halt,halt,halt
 
 
 shopVjmp:	.data	sVlsl, sVlsr, sVasr, sVror
@@ -802,11 +742,6 @@ shopd3jmp:	.data	sd3lsl, sd3lsr, sd3asr, sd3ror
 
 cjmp:		.data	dop, wbnv, wbeq, wbne, wblt, wble, wbge, wbgt
 
-;;; ---------------------------------- S ------------------------------------
-
-
-;;; assume left hand source in r2, right hand source in r3
-	
 wregs:
 wr0:	.data	0
 wr1:	.data	0
