@@ -190,6 +190,9 @@ wstu5:
 	mov	wregs(dest),warm(reg)
 	jmp	loop
 
+
+
+	
 wldrs:	add	reg, src
 	and	$0xffffff,src
 	mov	warm(src), wregs(dest)
@@ -200,12 +203,10 @@ wldrs:	add	reg, src
 wldus:	cmp	$0, reg
 	jl	wldu3s
 	add	src, reg
-	and	$0xffffff,reg
 	mov	reg, wregs(temp)
 
 ;;; if positive
-wldu2s:  		
-	and	$0xffffff,src
+wldu2s:	and	$0xffffff,src
 	mov	warm(src),wregs(dest)
 	add	$0,wregs(dest)
 	mov	ccr,wccr
@@ -213,50 +214,51 @@ wldu2s:
 	
 ;;; if negative
 wldu3s:	add	src, reg
-	and	$0xffffff,reg
 	mov	reg, wregs(temp)
 	
-wldu4s:	add 	reg,src
-	and	$0xffffff,src
-	mov	warm(src),wregs(dest)
+wldu4s:
+	and	$0xffffff,reg
+	mov	warm(reg),wregs(dest)
 	add	$0,wregs(dest)
 	mov	ccr,wccr
 	jmp	loop
 	
-wstrs:			
+wstrs:				
 	;;; doing str
 	add 	reg, src
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
-	add	$0,wregs(dest)
-	mov 	ccr,wccr
+	add	$0,warm(src)
+	mov	ccr,wccr
 	jmp	loop
 
 wstus:	
+
 	;;; doing stu
 	cmp	$0, reg
 	jl	wstu4s
 	add	src, reg
+	and	$0xffffff,reg
 	mov	reg,wregs(temp)
-	
+
 wstu2s:				;this is bad but it might work
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
-	add	$0,wregs(dest)
+	add	$0,warm(src)
 	mov	ccr,wccr
 	jmp	loop
 	
 ;;; if negative
-wstu4s:
-	add	src,reg
+wstu4s: 	add	src,reg
+	and	$0xffffff,reg
 	mov	reg,wregs(temp)
-	
-wstu5s:	add	exp,src
-		and	$0xffffff,src
-	mov	wregs(dest),warm(src)
-	add	$0,wregs(dest)
+
+wstu5s:
+	mov	wregs(dest),warm(reg)
+	add	$0,warm(reg)
 	mov	ccr,wccr
 	jmp	loop
+
 	
 wadr:	add	reg,src
 	mov	src, wregs(dest)
