@@ -16,13 +16,9 @@
 	lea	warm,r0
 	trap	$SysOverlay
 
-	;; 	.equ	wmem, -67108864
-;;; prolog ??mov	rsp,rbp sub	$16777216,rsp
-
 loop:	and	$0xffffff,wpc
 	mov	wpc,r1		;---------------BEGIN LOOP-----------------
 	mov	warm(r1),ir
-loopb:	
 
 cbits:	mov	ir,temp
 	shr	$29,temp
@@ -51,7 +47,6 @@ wbge:	mov	wccr,ccr
 	jge	dop
 	add	$1,wpc
 	jmp	loop
-
 	
 wbgt:	mov	wccr,ccr
 	jg	dop
@@ -60,25 +55,19 @@ wbgt:	mov	wccr,ccr
 
 	
 wbranch:add	ir,wpc
-	;; 	and	$0xffffff,wpc
-	;; 	mov	wpc, r0
-	;; 	mov	warm(r0), ir
 	jmp	loop
 	
 wbranchl:
 	mov	wpc,wlr
 	add	$1,wlr
 	add	ir,wpc
-	;; 	and	$0xffffff,wpc	
-	;; 	mov	wpc, r0
-	;; 	mov	warm(r0), ir	
 	jmp	loop
 		
 dop:	mov	ir, opcode
 	shr	$23, opcode
 	and	$0b111111, opcode
 	mov	opdecode(opcode), rip
-	
+
 d0:	mov	r2, dest
 	sar	$19, dest
 	and	$0b1111, dest
@@ -88,16 +77,13 @@ d1:	mov	ir, src
 	and	$0b1111, src
 	mov	wregs(src), src
 
-
 	;; Checks Shift/Bit14
 	mov	ir, temp
 	shr	$12, temp
 	and	$0b111, temp
 	mov	shjmp(temp), rip
-
 	
-d2:
-	mov	r2, dest
+d2:	mov	r2, dest
 	sar	$19, dest
 	and	$0b1111, dest
 	
@@ -123,13 +109,9 @@ d3:	test	$0b100000000000000, ir
 	mov	wregs(src), src
 	and	$0xffffff, src
 
-	;; next line saves value of displacement
-	mov	reg,exp
-	
 w3d3:	mov 	ir, dest
 	sar	$19, dest
 	and	$0b1111, dest
-	;; and 	$0b111, opcode
  	add	$1,wpc
 	mov	opjmp(opcode), rip
 	
@@ -162,10 +144,6 @@ wd3:	mov	ir, value
 wldr:	add	reg, src
 	and	$0xffffff,src
 	mov	warm(src), wregs(dest)
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
-	;; 	mov	src, wregs(dest)
 	jmp	loop
 	
 wldu:	cmp	$0, reg
@@ -174,11 +152,7 @@ wldu:	cmp	$0, reg
 	mov	reg, wregs(temp)
 
 ;;; if positive
-wldu2:  			;lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
-	;; 	mov	src, wregs(dest)
-	and	$0xffffff,src
+wldu2:	and	$0xffffff,src
 	mov	warm(src),wregs(dest)
 	jmp	loop
 	
@@ -186,22 +160,14 @@ wldu2:  			;lea	warm,r0
 wldu3:	add	src, reg
 	mov	reg, wregs(temp)
 	
-wldu4:	add 	reg,src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	0(src), src
-	and	$0xffffff,src
-	;; 	mov	regjmp(dest), rip
-	mov	warm(src),wregs(dest)
+wldu4:
+	and	$0xffffff,reg
+	mov	warm(reg),wregs(dest)
 	jmp	loop
 	
-wstr:				;mov	wregs(dest), dest
+wstr:				
 	;;; doing str
 	add 	reg, src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest, 0(src)
-	;; 	add	$1, wpc
 	and	$0xffffff,src
 	mov	wregs(dest),warm(src)
 	jmp	loop
@@ -233,13 +199,10 @@ wstu4: 	add	src,reg
 	mov	reg,wregs(temp)
 	;; mov	stubase(temp),rip
 
-wstu5:	add	exp,src
-	;; 	lea	warm,r0
-	;; 	add	r0,src
-	;; 	mov	dest,0(src)
-	;; 	add	$1,wpc
-	and	$0xffffff,src
-	mov	wregs(dest),warm(src)
+wstu5:
+	;; add	exp,src
+	;; 	and	$0xffffff,src
+	mov	wregs(dest),warm(reg)
 	jmp	loop
 
 wldrs:	add	reg, src
