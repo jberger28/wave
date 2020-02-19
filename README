@@ -1,0 +1,3 @@
+Final project for Computer Organization Course:
+A virtual emulator for a WARM, ARM-like RISC processor, written in WIND, a Intel x86 assembly-like language.
+Given a WARM program, the wave3.s program simulates the exuction of the WARM program on a WARM processor.
